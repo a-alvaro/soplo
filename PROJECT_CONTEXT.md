@@ -1,0 +1,153 @@
+# SOPLO — Project Context
+
+> This document is the single source of truth for **what SOPLO is, why it exists,
+> and where it is going**. It is written for any collaborator — human or AI agent —
+> joining the project. Operative rules for AI agents live in [`AGENTS.md`](./AGENTS.md).
+>
+> *Soplo* is Spanish for "puff" or "blow" — the breath of air that starts everything.
+
+---
+
+## 1. What SOPLO is
+
+SOPLO is an **open-source, browser-based 2D fluid dynamics playground** built to help
+people *understand* fluid mechanics — not just watch pretty colors.
+
+You describe a problem in real physical units (meters, m/s, air or water), place a
+cylinder, a square, a NACA airfoil, or your own SVG/DXF geometry in the flow, and SOPLO
+runs a Lattice-Boltzmann simulation live in your browser while it:
+
+- shows you the flow (velocity fields, vorticity, smoke-line streamlines),
+- measures aerodynamic forces (Cd, Cl, L/D) and their convergence,
+- **tells you when to trust the numbers and when not to** (Reynolds/τ/Mach safety
+  indicator, blockage warnings),
+- and — this is the goal — **explains what you are looking at** in plain language.
+
+### What SOPLO is NOT
+
+- Not a replacement for OpenFOAM, ANSYS, or any engineering-grade CFD tool.
+- Not a 3D solver, not compressible, not turbulent-model-based. It is 2D
+  incompressible LBM with an honest Reynolds ceiling (≈ 3,500 with the current
+  MRT scheme at typical grid sizes).
+- Not a toy either: results on canonical cases are validated against literature
+  (see `VALIDATION.md` once Phase 1 lands), and the tool actively refuses to
+  present garbage as physics.
+
+**The positioning in one line:** *the wind tunnel you wish you had before (and
+during) your first fluid mechanics course.*
+
+## 2. Why it deserves to exist
+
+There are dozens of LBM demos on the web. Almost all of them share the same three gaps,
+and those gaps are exactly SOPLO's identity:
+
+| Typical web LBM demo | SOPLO |
+|---|---|
+| Sliders in lattice units that mean nothing physically | Real units (m, m/s, ν); lattice conversion is invisible (`u₀ = 0.07 lu` fixed, τ derived) |
+| Lets you simulate garbage without warning | Safety indicator (Re/τ/Mach traffic light), blockage ratio warnings, stability limits surfaced as `Re_safe ≈ 21·D_cells` |
+| Shows colors, explains nothing | Regime detection (steady / vortex shedding / unstable), force convergence analysis, and a growing interpretation layer that narrates the physics |
+
+The differentiators to protect and deepen, in priority order:
+
+1. **Interpretation** — the tool teaches. Every visual phenomenon should be one
+   click away from a plain-language explanation.
+2. **Physical honesty** — the tool never silently degrades. If the setup exceeds
+   what 2D LBM can resolve, the user is told, with the actual limit.
+3. **Engineering rigor made visible** — validated benchmarks, invariant tests,
+   documented decisions. The repo itself is a portfolio piece.
+
+## 3. Who it is for
+
+- **The curious person** who never took a fluids course but wants to see why a
+  streamlined body has less drag than a flat plate.
+- **The student** who took the course and still doesn't *feel* what boundary-layer
+  separation or vortex shedding means.
+- **The teacher** who wants a zero-install experiment to hand to a class
+  ("run this, sweep the Reynolds number, tell me what changes").
+- **The maker/engineer** doing a quick qualitative sanity check before firing up
+  real CFD.
+
+## 4. Current state (July 2026)
+
+**Stack:** React 19 + TypeScript + Vite + Tailwind 4, recharts for plots.
+Custom D2Q9 **MRT** LBM solver in plain TypeScript, Canvas2D rendering.
+
+**Implemented and working:**
+- MRT collision (d'Humières basis) with tuned ghost-mode relaxation (stable to ~3–4× the Re of BGK).
+- Half-way bounce-back on arbitrary solids; velocity inlet, zero-gradient outlet.
+- Physical→lattice unit conversion layer with τ clamping and warning system.
+- Momentum-exchange (Ladd) force measurement, correctly timed post-collision/pre-stream; live Cd/Cl/L/D with convergence classification (converging / oscillating / unstable).
+- Geometries: cylinder, square, NACA 4-digit (parametric), SVG import, DXF import.
+- Domain modes: free flow (auto-sized) and wind tunnel (manual dims or SVG cross-section), with blockage warnings.
+- Smoke-line streamline renderer; viridis-style field rendering (|u|, ux, uy, vorticity).
+- Safety indicator (Re/τ/Ma), InfoTip educational popovers, perturbation injection to seed vortex streets.
+
+**Missing (the reason for the roadmap):**
+- Zero automated tests; no validation against canonical benchmarks documented.
+- No README, LICENSE, CI, or contribution docs.
+- Solver runs on the main thread (no Web Worker yet).
+- Interpretation layer is embryonic (regime detection exists; explanation does not).
+- Repo hygiene issues (debug logging, editor artifacts, stray build files).
+
+## 5. Roadmap
+
+Each phase must leave the repository **more publishable than the previous one**.
+No phase is "done" with loose ends dangling into the next.
+
+### Phase 0 — Hygiene & identity
+Clean repo (remove debug `console.log` in `computeForces`, `.DS_Store`,
+`tsconfig.tsbuildinfo`, stray `.claude/` worktrees; proper `.gitignore`).
+Add MIT `LICENSE`, honest `README.md` with a GIF, this document, `AGENTS.md`.
+Decide final public repo strategy (keep history vs. fresh public repo with the
+current code as a curated initial commit). Extract simulation loop from
+`App.tsx` into a hook as the first, small structural refactor.
+
+### Phase 1 — Validation (the credential)
+Headless test harness (Vitest) exercising the solver without the UI:
+- **Invariant tests:** mass conservation, symmetric-flow symmetry, equilibrium stability, no-NaN under long runs at τ limits.
+- **Canonical benchmarks:** Poiseuille profile vs. analytic solution; cylinder at Re = 20 (steady, Cd ≈ 2.0) and Re = 100 (Cd ≈ 1.35, Strouhal ≈ 0.165).
+- `VALIDATION.md` with a results-vs-literature table.
+- **In-app Strouhal measurement** (FFT over the Cl history) surfaced in the Results panel next to the literature value — instant credibility, and didactic in itself.
+- CI (GitHub Actions): typecheck + tests on every push.
+
+### Phase 2 — Interpretation layer (the differentiator)
+Build on the existing regime detection:
+- Contextual "what am I seeing?" explanations driven by Re + convergence state (attached laminar flow → separation → von Kármán street → beyond-validity).
+- Canvas annotations: stagnation point, wake region, separation zone.
+- Plain-language glossary; expand InfoTips.
+- Move the solver to a **Web Worker** in this phase (interpretation adds UI work; the main thread must be free).
+
+### Phase 3 — Guided experiments (the teacher mode)
+Experiments defined as JSON presets + guided steps + observation prompts. Launch set:
+1. *Vortex shedding vs. Reynolds* (cylinder sweep — the boundary-layer separation lesson).
+2. *Angle of attack on a NACA airfoil* (live Cl–α behaviour, stall qualitatively).
+3. *Blunt vs. streamlined body* (why fairings work).
+Shareable experiment/config URLs if cheap.
+
+### v2 horizon (not in scope for v1)
+- **WebGPU compute solver** — raises the Re ceiling and grid sizes substantially. Flagship of v2.
+- **AI interpreter (BYO API key):** a text field where the user pastes their own Anthropic/OpenAI key; the model receives the sim config, regime, force history and Strouhal, and narrates/answers questions in context. Sits naturally *on top of* Phase 2's structured interpretation data. Privacy stance: key stays client-side, calls go direct from the browser.
+- Side-by-side comparison mode (two configs, one screen — very didactic).
+- More geometries; parameter sweep automation.
+
+## 6. Decision log
+
+| Date | Decision | Rationale |
+|---|---|---|
+| 2026-07 | Reposition from "personal experiment" to **serious didactic open-source tool** | The differentiators (units, honesty, interpretation) are worth building for a public audience |
+| 2026-07 | **English** for UI, code and docs | Open-source reach |
+| 2026-07 | **MIT license** | Didactic tool: maximize adoption; nothing to protect |
+| 2026-07 | **Keep the existing codebase** — no rewrite | Solver and architecture audited and sound; what's missing is around the code, not inside it |
+| 2026-07 | Web Worker in v1; **WebGPU deferred to v2** | Didactic grids run fine on CPU; WebGPU is high effort and becomes v2's flagship |
+| 2026-07 | AI interpreter in backlog (v2), designed as BYO-key, provider-agnostic | Depends on Phase 2's structured interpretation data existing first |
+| 2026-05 | MRT over BGK collision | ~3–4× higher stable Re at the same grid |
+| 2026-05 | Fixed `u₀ = 0.07 lu`; user never sees lattice units | Keeps Ma low and the physics honest; physical units are the UX |
+| 2026-05 | Momentum-exchange (Ladd) for forces, not pressure integral | Standard, accurate on staircase boundaries, and captures both pressure and viscous contributions |
+
+## 7. Working method
+
+The project follows **Spec Driven Development (SDD)**: specs and decisions are
+written down *before* implementation, live in the repo, and are versioned with the
+code. This file and `AGENTS.md` are the primary SDD artifacts. High-level
+architecture is decided in conversation with a high-capability model; implementation
+is delegated to coding agents in scoped, single-phase sessions.

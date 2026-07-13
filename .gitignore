@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Editor / OS artifacts
+.DS_Store
+*.local
+
+# Local agent state (settings.local.json, worktrees, …)
+.claude/
