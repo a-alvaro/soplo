@@ -124,6 +124,18 @@ Experiments defined as JSON presets + guided steps + observation prompts. Launch
 3. *Blunt vs. streamlined body* (why fairings work).
 Shareable experiment/config URLs if cheap.
 
+### Backlog — small, unscheduled (candidates to slot into any phase if cheap)
+- **Pressure field view.** We render |u|, ux, uy and vorticity; pressure is missing
+  and is nearly free in LBM (`p = ρ·c_s²`, with `c_s² = 1/3` in lattice units —
+  the density field already exists). Didactically strong: suction over a wing's
+  upper surface is *the* lift explanation. *(Inspired by Kutta, see §7.)*
+- **Single-step control while paused.** Advance the simulation one step at a time.
+  Trivial to implement, and a powerful teaching device for watching an instability
+  grow or a vortex detach frame by frame. *(Inspired by Kutta, see §7.)*
+- **NACA 5-digit airfoils.** We generate 4-digit profiles from the closed-form
+  equations; the 5-digit family is the same approach with a different camber-line
+  definition. Cheap extension of `src/geometry/naca.ts`. *(Inspired by Kutta, see §7.)*
+
 ### v2 horizon (not in scope for v1)
 - **WebGPU compute solver** — raises the Re ceiling and grid sizes substantially. Flagship of v2.
 - **AI interpreter (BYO API key):** a text field where the user pastes their own Anthropic/OpenAI key; the model receives the sim config, regime, force history and Strouhal, and narrates/answers questions in context. Sits naturally *on top of* Phase 2's structured interpretation data. Privacy stance: key stays client-side, calls go direct from the browser.
@@ -143,9 +155,44 @@ Shareable experiment/config URLs if cheap.
 | 2026-05 | MRT over BGK collision | ~3–4× higher stable Re at the same grid |
 | 2026-05 | Fixed `u₀ = 0.07 lu`; user never sees lattice units | Keeps Ma low and the physics honest; physical units are the UX |
 | 2026-05 | Momentum-exchange (Ladd) for forces, not pressure integral | Standard, accurate on staircase boundaries, and captures both pressure and viscous contributions |
-| 2026-07 | Sign convention frozen: lattice +y = physical up, `Cl = +Fy` | Renderer flips y at draw time; verified empirically with NACA ±10° AoA (`docs/specs/cl-sign-convention.md`) |
+| 2026-07 | **Kutta** adopted as conceptual reference only — no code reuse | Different language/stack; SOPLO's value is in the ground Kutta explicitly cedes (see §7) |
 
-## 7. Working method
+## 7. Reference projects
+
+### Kutta — `github.com/crgimenes/kutta` (formerly `crgimenes/airfoil`)
+
+A 2D LBM wind tunnel in Go + Ebitengine (D2Q9 **BGK**, desktop binaries,
+MIT-licensed; analyzed at v0.1.5, July 2026). Excellent, polished project —
+studied as a conceptual reference. **Policy: ideas only, zero code translation.**
+Algorithms and approaches are not copyrightable; verbatim code reuse would
+require carrying their MIT copyright notice, and we simply don't do it (different
+language, different solver decisions).
+
+**What it teaches us about positioning.** Kutta's README states openly that it
+is qualitative, not validated CFD: it runs in lattice units, aims to get the
+*shape* of the flow right and accepts getting the numbers wrong, and its forces
+come from a pressure integral that ignores skin friction (understating drag —
+documented by them as a known limit). That is precisely the ground SOPLO claims:
+**physical units, momentum-exchange forces (pressure + viscous), and documented
+quantitative validation**. The two tools are complementary, not competitors —
+and SOPLO's README may state this advantage factually, without arrogance.
+
+**What we adopt conceptually:**
+- *Headless-testable core, enforced by package layout* — their `lbm`/`foil`/
+  `scene`/`viz` packages carry no rendering dependency and are unit-tested
+  headlessly, with a snapshot tool that renders fields to PNG without a GPU
+  for physics sanity checks (lift rising with angle of attack, force signs).
+  This mirrors and validates the layering rule already in `AGENTS.md`. Note
+  their tests are *qualitative sanity checks*; SOPLO's Phase 1 goes further
+  with quantitative benchmarks against literature — consistent with the
+  positioning gap above.
+- *Pressure field view*, *single-step while paused*, *NACA 5-digit* — see Backlog (§5).
+
+**What we deliberately do not chase:** their shape editor (Bézier handles,
+wing/flap cutting, keyframed control surfaces) is impressive but is *their*
+identity. SOPLO's energy goes to interpretation and validation instead.
+
+## 8. Working method
 
 The project follows **Spec Driven Development (SDD)**: specs and decisions are
 written down *before* implementation, live in the repo, and are versioned with the
