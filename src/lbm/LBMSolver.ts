@@ -452,26 +452,17 @@ export class LBMSolver {
    * small random uy on top of the prescribed (u0, 0).
    */
   /**
-   * Compute aerodynamic forces on all solid bodies via momentum exchange.
-   *
-   * For each fluid cell adjacent to a solid cell along direction i, the
-   * bounce-back condition implies a momentum transfer of 2·f[i]·e[i] per
-   * link. Summing over all such fluid-solid links gives the total lattice
-   * force on the object.
-   *
-   * The result is normalised by the dynamic pressure q = 0.5·ρ·u0² and the
-   * reference area (charCells × 1 in 2D) to produce Cd and Cl.
-   *
-   * Sign convention: Cd = drag (flow direction, +x), Cl = lift (upward, −y
-   * because lattice y grows downward while physical y grows upward).
-   */
-  /**
    * Read the aerodynamic forces accumulated during the last iterate() call
    * and return normalised Cd / Cl coefficients.
    *
    * The raw forces (lastFx, lastFy) are computed inside accumulateForces(),
    * which runs post-collision pre-stream — the correct moment for the Ladd
-   * momentum-exchange method.
+   * momentum-exchange method. They are normalised by the dynamic pressure
+   * q = 0.5·ρ·u0² and the reference area (charCells × 1 in 2D).
+   *
+   * Sign convention (see docs/specs/cl-sign-convention.md): lattice +x is
+   * downstream and lattice +y is physical "up" (the renderer flips y at draw
+   * time), so Cd = +Fx (drag) and Cl = +Fy (lift, positive upward).
    */
   computeForces(charCells: number): { Fx: number; Fy: number; Cd: number; Cl: number } {
     const Fx = this.lastFx;

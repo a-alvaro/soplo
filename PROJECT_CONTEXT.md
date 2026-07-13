@@ -143,6 +143,7 @@ Shareable experiment/config URLs if cheap.
 | 2026-05 | MRT over BGK collision | ~3–4× higher stable Re at the same grid |
 | 2026-05 | Fixed `u₀ = 0.07 lu`; user never sees lattice units | Keeps Ma low and the physics honest; physical units are the UX |
 | 2026-05 | Momentum-exchange (Ladd) for forces, not pressure integral | Standard, accurate on staircase boundaries, and captures both pressure and viscous contributions |
+| 2026-07 | Sign convention frozen: lattice +y = physical up, `Cl = +Fy` | Renderer flips y at draw time; verified empirically with NACA ±10° AoA (`docs/specs/cl-sign-convention.md`) |
 
 ## 7. Working method
 

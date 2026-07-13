@@ -30,6 +30,7 @@
 | MRT relaxation rates | conserved = 1.0; ghosts e/eps = 1.8, qx/qy = 1.7; stress pxx/pxy = 1/τ | Empirically tuned: ~3× more stable Re than Lallemand–Luo defaults, no measurable physics impact |
 | Force timing | Momentum exchange accumulates **post-collision, pre-stream** | Required by the Ladd MEM formula; moving the call produces wrong forces |
 | Solid encoding | `solid=1` domain walls (excluded from forces), `solid=2` aerodynamic bodies (included) | Force measurement correctness |
+| Axis / force signs | Lattice +x = downstream, +y = physical up (renderer flips y at draw time); `Cd = +Fx`, `Cl = +Fy`; positive AoA = nose up via `−aoa` rotation | Verified empirically (NACA ±10° antisymmetry); see `docs/specs/cl-sign-convention.md` |
 | Boundary layout | Inlet = left (velocity equilibrium, skips solid cells), outlet = right (zero-gradient), walls via bounce-back | Validation logic in `App.tsx` enforces left/right for now |
 | f-array layout | `f[i * Nx*Ny + x*Ny + y]` | All hot loops assume it |
 
