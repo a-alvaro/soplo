@@ -40,7 +40,7 @@ interface Particle {
 
 /** Bilinear interpolation of a scalar field stored as f[x*Ny + y]. */
 function bilerp(
-  field: Float32Array,
+  field: Float64Array,
   x: number,
   y: number,
   Nx: number,
@@ -123,8 +123,8 @@ export class StreamlineRenderer {
 
   /** Advect particles one frame. Should be called after the LBM step. */
   step(
-    ux: Float32Array,
-    uy: Float32Array,
+    ux: Float64Array,
+    uy: Float64Array,
     solid: Uint8Array,
     Nx: number,
     Ny: number,

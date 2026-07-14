@@ -22,7 +22,7 @@ function feq(i: number, rho: number, ux: number, uy: number): number {
  * solver dissipates, suppressing asymmetry.
  */
 export function applyInlet(
-  f: Float32Array,
+  f: Float64Array,
   Nx: number,
   Ny: number,
   u0: number,
@@ -39,7 +39,7 @@ export function applyInlet(
 }
 
 /** Outflow: copy populations from x=Nx-2 to x=Nx-1 (zero gradient). */
-export function applyOutlet(f: Float32Array, Nx: number, Ny: number): void {
+export function applyOutlet(f: Float64Array, Nx: number, Ny: number): void {
   const NxNy = Nx * Ny;
   for (let y = 0; y < Ny; y++) {
     const k = (Nx - 1) * Ny + y;

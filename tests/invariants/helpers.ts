@@ -20,7 +20,7 @@ export function mulberry32(seed: number): () => number {
  * buffer in double precision. `k` is the scalar index x·Ny + y.
  */
 export function nodeMoments(
-  f: Float32Array,
+  f: Float64Array,
   NxNy: number,
   k: number,
 ): { rho: number; jx: number; jy: number } {
@@ -37,7 +37,7 @@ export function nodeMoments(
 }
 
 /** Index of the first non-finite entry in a typed array, or -1 if none. */
-export function firstNonFinite(arr: Float32Array): number {
+export function firstNonFinite(arr: Float64Array): number {
   for (let i = 0; i < arr.length; i++) {
     if (!Number.isFinite(arr[i])) return i;
   }
