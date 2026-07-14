@@ -156,6 +156,7 @@ Shareable experiment/config URLs if cheap.
 | 2026-05 | Fixed `u₀ = 0.07 lu`; user never sees lattice units | Keeps Ma low and the physics honest; physical units are the UX |
 | 2026-05 | Momentum-exchange (Ladd) for forces, not pressure integral | Standard, accurate on staircase boundaries, and captures both pressure and viscous contributions |
 | 2026-07 | **Kutta** adopted as conceptual reference only — no code reuse | Different language/stack; SOPLO's value is in the ground Kutta explicitly cedes (see §7) |
+| 2026-07 | Solver storage migrated Float32Array → Float64Array | Invariant tests INV-1/2 exposed f32 rounding floor (~1e-7); f64 passes with 70–2800× margin, is +12% faster in JS (arithmetic is always double; f32 pays conversion per access), at 2× memory (negligible on desktop). The f64 CPU solver becomes the reference for validating the future f32 WebGPU solver in v2 |
 
 ## 7. Reference projects
 

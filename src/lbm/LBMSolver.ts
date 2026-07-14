@@ -63,11 +63,11 @@ export class LBMSolver {
   readonly tau: number;
   readonly u0: number;
 
-  f: Float32Array;
-  fNew: Float32Array;
-  rho: Float32Array;
-  ux: Float32Array;
-  uy: Float32Array;
+  f: Float64Array;
+  fNew: Float64Array;
+  rho: Float64Array;
+  ux: Float64Array;
+  uy: Float64Array;
   solid: Uint8Array;
 
   step = 0;
@@ -77,16 +77,16 @@ export class LBMSolver {
   private lastFy = 0;
 
   /** Moment-space transform M (9×9, row-major). */
-  private readonly M: Float32Array;
+  private readonly M: Float64Array;
   /** Inverse transform M⁻¹ (9×9, row-major), pre-scaled by 1/36. */
-  private readonly Mi: Float32Array;
+  private readonly Mi: Float64Array;
   /** Per-moment relaxation rates (diagonal of S). Updated by updateRelaxation. */
-  private readonly s: Float32Array;
+  private readonly s: Float64Array;
 
   /** Scratch buffers for the per-cell collide. Allocated once, reused per
    *  cell, so we never allocate inside the hot loop. */
-  private readonly _m: Float32Array;
-  private readonly _meq: Float32Array;
+  private readonly _m: Float64Array;
+  private readonly _meq: Float64Array;
 
   constructor(opts: LBMOptions) {
     this.Nx = opts.Nx;
@@ -95,18 +95,18 @@ export class LBMSolver {
     this.u0 = opts.u0;
 
     const N = this.Nx * this.Ny;
-    this.f = new Float32Array(Q * N);
-    this.fNew = new Float32Array(Q * N);
-    this.rho = new Float32Array(N);
-    this.ux = new Float32Array(N);
-    this.uy = new Float32Array(N);
+    this.f = new Float64Array(Q * N);
+    this.fNew = new Float64Array(Q * N);
+    this.rho = new Float64Array(N);
+    this.ux = new Float64Array(N);
+    this.uy = new Float64Array(N);
     this.solid = new Uint8Array(N);
 
-    this.M = new Float32Array(M_DATA);
-    this.Mi = Float32Array.from(MI_RAW, (v) => v / 36);
-    this.s = new Float32Array(9);
-    this._m = new Float32Array(9);
-    this._meq = new Float32Array(9);
+    this.M = new Float64Array(M_DATA);
+    this.Mi = Float64Array.from(MI_RAW, (v) => v / 36);
+    this.s = new Float64Array(9);
+    this._m = new Float64Array(9);
+    this._meq = new Float64Array(9);
     this.updateRelaxation();
   }
 

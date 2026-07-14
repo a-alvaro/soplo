@@ -33,6 +33,7 @@
 | Axis / force signs | Lattice +x = downstream, +y = physical up (renderer flips y at draw time); `Cd = +Fx`, `Cl = +Fy`; positive AoA = nose up via `−aoa` rotation | Verified empirically (NACA ±10° antisymmetry); see `docs/specs/cl-sign-convention.md` |
 | Boundary layout | Inlet = left (velocity equilibrium, skips solid cells), outlet = right (zero-gradient), walls via bounce-back | Validation logic in `App.tsx` enforces left/right for now |
 | f-array layout | `f[i * Nx*Ny + x*Ny + y]` | All hot loops assume it |
+| Solver storage precision | `Float64Array` for all population/field arrays | INV-1/INV-2 tolerances (1e-12/1e-10) assume double precision; changing storage precision invalidates them and requires a spec |
 
 ## Architecture map
 
