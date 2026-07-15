@@ -56,7 +56,8 @@ Runtime: ~18 min on an Apple M5 (single process).
 ## Open finding: velocity inlet over-constrains density (affects BM-1, BM-2)
 
 **Status:** blocking BM-1 and BM-2 · discovered 2026-07-14 during this phase ·
-solver untouched pending maintainer decision (discrepancy protocol).
+fix attempted 2026-07-15 in Phase 1.2b (branch `phase-1-2b-boundary-conditions`),
+blocked by a new finding — see the next section.
 
 **Symptom (BM-1, channel 300×52, Re_H = 20, τ = 1.025).** The velocity profile
 develops the correct parabolic *shape* (peak/mean = 1.513 vs analytic 1.5; L2
@@ -93,6 +94,59 @@ per AGENTS.md rule 1.
 **Why BM-3 passes anyway:** its gates are statistics of a saturated limit
 cycle measured over a window (48k steps) much shorter than the choking
 timescale at ν = 0.014 in a 400-cell-tall domain.
+
+## Open finding (Phase 1.2b): Zou–He inlet is unstable with the tuned MRT ghost rates
+
+**Status:** blocks Phase 1.2b revalidation · discovered 2026-07-15 ·
+implementation lives on branch `phase-1-2b-boundary-conditions`, stopped per
+the spec's stability caveat (no scheme blending, no ad-hoc damping, no MRT
+retuning — all explicitly out of scope).
+
+**Symptom.** With the Zou–He pair implemented per spec — and its direction
+mapping verified exactly by the new BC-1 test (moments to ≤ 1e-12) — the
+walled channel (100×50, u₀ = 0.07) reaches NaN within 2,000–5,000 steps at
+*every* τ tested (0.51, 0.8, 1.5). INV-2 fails: the uniform equilibrium,
+still an exact fixed point of the new BCs, becomes linearly *unstable* —
+round-off grows ~×50 per 250 steps at τ = 0.8 until blow-up. INV-4 fails at
+both τ band edges (NaN before 10,000 steps). τ = 1.5 is creeping flow
+(Re_H ≈ 10); this is a numerical instability, not a physical one.
+
+**Bisection (walled channel, τ = 1.5, 12k steps).**
+
+| Configuration | Result |
+|---|---|
+| Zou–He inlet + old zero-gradient outlet | secular mass growth, unbounded |
+| Old equilibrium inlet + Zou–He outlet | **stable**, converges (mean ρ = 1.083, stationary) |
+| Zou–He inlet + Zou–He outlet | NaN ≤ 2,000 steps |
+| Same, parabolic inlet profile (diagnostic) | NaN — rules out the plug-profile/no-slip corner singularity |
+| Same, ghost rates e/eps = 1.8, q = 1.2 | NaN — energy mode is the culprit, not q |
+| Same, ghost rates e/eps ≤ 1.6 | stable |
+| Same, Lallemand–Luo rates (1.4 / 1.2) | **stable everywhere tested**: channel converges to a stationary pressure-drop state (mean ρ ≈ 1.021) at all three τ; INV-2 setup passes at 2.2e-14; INV-4 cylinder survives 10k steps at both τ = 0.51 and τ = 1.5 |
+
+**Hypothesis.** Zou–He is a wet-node scheme: boundary nodes are reconstructed
+every step and then collided. The reconstruction fixes the hydrodynamic
+moments exactly but injects uncontrolled non-equilibrium content into the
+ghost (energy) moments; with the project's aggressive over-relaxation
+s_e = s_eps = 1.8 (multiplier −0.8 per collision) the boundary
+reconstruction–collision–streaming loop acquires an eigenvalue above 1. The
+instability is a property of the (Zou–He × s_e = 1.8) combination — not of
+the mapping (BC-1 exact), the profile (parabolic also blows up), or the
+outlet (stable in isolation).
+
+**Decision needed (maintainer).** The tuned rates are a protected invariant
+(AGENTS.md: ~3× higher stable Re than Lallemand–Luo defaults, tuned against
+the *old* equilibrium inlet). The evidence above says Zou–He requires
+s_e ≲ 1.6, and that with Lallemand–Luo rates the full Phase 1.2b picture
+looks healthy — but the high-Re stability margin under the new BCs is
+untested and would need its own spec/validation pass (the small INV-4 case
+at the τ_lo edge does pass with 1.4/1.2 + Zou–He).
+
+**Spec erratum (implemented, verified by BC-1):** the outlet formulas in
+`docs/specs/phase-1-2b-boundary-conditions.md` have the ½(f_N − f_S) corner
+terms on f_NW/f_SW transposed; as written they violate the ρ·u_y = 0
+constraint (they give u_y = 2(f_N − f_S)/ρ). The implementation uses the
+constraint-consistent signs: f_NW = f_SE − ½(f_N − f_S) − (1/6)ρu,
+f_SW = f_NE + ½(f_N − f_S) − (1/6)ρu.
 
 ## Known limitations (independent of the finding above)
 
