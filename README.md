@@ -37,9 +37,11 @@ physical honesty, and interpretation.
 - **Not** 3D, not compressible, not turbulence-model-based. It is 2D
   incompressible LBM with an honest Reynolds ceiling (≈ 3,500 with the current
   MRT scheme at typical grid sizes) — and it tells you when you exceed it.
-- **Not** validated yet: benchmark tests against canonical cases (Poiseuille,
-  cylinder at Re 20/100) are the next roadmap phase. Until `VALIDATION.md`
-  lands, treat the numbers as qualitative.
+- **Not** fully validated yet: solver invariants (mass conservation, symmetry,
+  stability, no-slip) are tested and green, and the Re = 100 vortex-shedding
+  benchmark matches literature (Cd, Strouhal). Two canonical cases are
+  currently blocked by an open boundary-condition finding — see
+  [`VALIDATION.md`](./VALIDATION.md) for the honest scoreboard.
 
 ## Running locally
 
