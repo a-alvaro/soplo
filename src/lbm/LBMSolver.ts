@@ -112,27 +112,28 @@ export class LBMSolver {
 
   /**
    * (Re)compute the relaxation rates. Conserved moments use s=1 (value
-   * irrelevant because m == meq for them; 1 is convention). Non-physical
-   * ghost moments are damped aggressively (s≈1.7–1.8) so numerical noise
-   * decays before it can pollute the physical fields. Stress modes use
+   * irrelevant because m == meq for them; 1 is convention). Ghost moments
+   * use the Lallemand–Luo (2000) reference values. Stress modes use
    * s=1/tau — they're the only ones tied to viscosity.
    *
-   * Empirical: ghost rates of 1.4 / 1.2 (Lallemand–Luo defaults) are fine
-   * at Re ≲ 1500 on a 40-cell cylinder, but at higher Re (τ → 0.5) the
-   * ghosts amplify slowly and crash the solver after a few thousand steps.
-   * Tightening to 1.8 / 1.7 buys ≈3× more stable Re without measurable
-   * impact on the resolved physics.
+   * The ghost rates and the boundary scheme form a COUPLED SYSTEM (spec
+   * phase-1-2b). The previous aggressive rates (1.8 / 1.7) were stable only
+   * because the legacy equilibrium inlet wiped non-equilibrium content at
+   * the boundary every step; under the wet-node Zou–He pair the boundary
+   * reconstruction→collision loop is linearly unstable for s_e ≳ 1.6 at
+   * every τ (NaN within ~5k steps even in creeping flow). Do not change
+   * either side without revalidating the pair (INV-2/4/6 + benchmarks).
    */
   private updateRelaxation(): void {
     const inv = 1 / this.tau;
     const s = this.s;
     s[0] = 1.0; // rho   (conserved)
-    s[1] = 1.8; // e     (ghost — energy mode)
-    s[2] = 1.8; // eps   (ghost)
+    s[1] = 1.4; // e     (ghost — energy mode)
+    s[2] = 1.4; // eps   (ghost)
     s[3] = 1.0; // jx    (conserved)
-    s[4] = 1.7; // qx    (ghost — energy flux)
+    s[4] = 1.2; // qx    (ghost — energy flux)
     s[5] = 1.0; // jy    (conserved)
-    s[6] = 1.7; // qy    (ghost)
+    s[6] = 1.2; // qy    (ghost)
     s[7] = inv; // pxx   (physical — controls viscosity)
     s[8] = inv; // pxy   (physical)
   }
