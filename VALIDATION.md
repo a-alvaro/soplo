@@ -56,8 +56,10 @@ Runtime: ~18 min on an Apple M5 (single process).
 ## Open finding: velocity inlet over-constrains density (affects BM-1, BM-2)
 
 **Status:** blocking BM-1 and BM-2 · discovered 2026-07-14 during this phase ·
-fix attempted 2026-07-15 in Phase 1.2b (branch `phase-1-2b-boundary-conditions`),
-blocked by a new finding — see the next section.
+fix (Zou–He pair + ghost-rate retune, spec 1.2b rev 2) is applied on branch
+`phase-1-2b-boundary-conditions` with the fast tier green and the channel
+showing the correct stationary pressure ramp; formal closure is pending the
+benchmark re-runs, which are halted at the INV-6 threshold finding below.
 
 **Symptom (BM-1, channel 300×52, Re_H = 20, τ = 1.025).** The velocity profile
 develops the correct parabolic *shape* (peak/mean = 1.513 vs analytic 1.5; L2
@@ -95,12 +97,14 @@ per AGENTS.md rule 1.
 cycle measured over a window (48k steps) much shorter than the choking
 timescale at ν = 0.014 in a 400-cell-tall domain.
 
-## Open finding (Phase 1.2b): Zou–He inlet is unstable with the tuned MRT ghost rates
+## Resolved finding (Phase 1.2b): Zou–He inlet is unstable with the tuned MRT ghost rates
 
-**Status:** blocks Phase 1.2b revalidation · discovered 2026-07-15 ·
-implementation lives on branch `phase-1-2b-boundary-conditions`, stopped per
-the spec's stability caveat (no scheme blending, no ad-hoc damping, no MRT
-retuning — all explicitly out of scope).
+**Status:** RESOLVED by spec rev 2 (2026-07-15) — the ghost rates are retuned
+to the Lallemand–Luo reference values s_e = s_ε = 1.4, s_qx = s_qy = 1.2 as
+part of the same system change (boundary scheme and ghost rates are a coupled
+system; see AGENTS.md invariants table). With the new rates the full fast
+tier (BC-1, INV-1…5) is green on this branch. The evidence below is kept as
+the record behind the rev 2 decision.
 
 **Symptom.** With the Zou–He pair implemented per spec — and its direction
 mapping verified exactly by the new BC-1 test (moments to ≤ 1e-12) — the
@@ -133,22 +137,62 @@ instability is a property of the (Zou–He × s_e = 1.8) combination — not of
 the mapping (BC-1 exact), the profile (parabolic also blows up), or the
 outlet (stable in isolation).
 
-**Decision needed (maintainer).** The tuned rates are a protected invariant
-(AGENTS.md: ~3× higher stable Re than Lallemand–Luo defaults, tuned against
-the *old* equilibrium inlet). The evidence above says Zou–He requires
-s_e ≲ 1.6, and that with Lallemand–Luo rates the full Phase 1.2b picture
-looks healthy — but the high-Re stability margin under the new BCs is
-untested and would need its own spec/validation pass (the small INV-4 case
-at the τ_lo edge does pass with 1.4/1.2 + Zou–He).
+**Resolution (spec rev 2).** The old rates were never an invariant of the
+solver alone but of the solver+BC pair: the legacy equilibrium inlet silently
+wiped ghost content at the boundary each step. Rev 2 retunes to
+Lallemand–Luo values as part of the BC system change, documents scheme+rates
+as a coupled system, and adds an informative Re-ceiling smoke check (the
+high-Re margin was tuned against the old inlet). Regularized BCs (Latt 2008)
+are recorded in the backlog as the principled path to higher rates.
 
-**Spec erratum (implemented, verified by BC-1):** the outlet formulas in
-`docs/specs/phase-1-2b-boundary-conditions.md` have the ½(f_N − f_S) corner
-terms on f_NW/f_SW transposed; as written they violate the ρ·u_y = 0
-constraint (they give u_y = 2(f_N − f_S)/ρ). The implementation uses the
-constraint-consistent signs: f_NW = f_SE − ½(f_N − f_S) − (1/6)ρu,
-f_SW = f_NE + ½(f_N − f_S) − (1/6)ρu.
+**Spec erratum (fixed in rev 2, verified by BC-1):** the first version of the
+spec had the ½(f_N − f_S) corner terms of the outlet f_NW/f_SW transposed; as
+written they violated the ρ·u_y = 0 constraint (they give
+u_y = 2(f_N − f_S)/ρ). The implementation always used the
+constraint-consistent signs, pinned by BC-1: f_NW = f_SE − ½(f_N − f_S) −
+(1/6)ρu, f_SW = f_NE + ½(f_N − f_S) − (1/6)ρu.
 
-## Known limitations (independent of the finding above)
+## Open finding (Phase 1.2b rev 2): INV-6 mean-density gate is below the analytic Poiseuille offset
+
+**Status:** halts the rev 2 revalidation sequence at its step 2 (INV-6);
+discovered 2026-07-15 · discrepancy protocol: documented, nothing recalibrated,
+benchmarks BM-1/BM-2/BM-3 not yet re-run (they follow INV-6 in the mandatory
+order). Maintainer decision needed on the threshold.
+
+**Setup (exactly as spec'd).** Driven channel 120×50 (walls on rows 0/49,
+H = 48), u₀ = 0.07, Re_H = 20 → ν = 0.168, τ = 1.004. 50,000 steps; domain-mean
+density sampled every 50 steps over the last 40,000.
+
+**Measured.**
+
+- Slope gate (the actual regression guard): **PASS** — linear-fit slope
+  −5.4·10⁻¹² per step vs gate ≤ 1·10⁻⁹; first and last window samples differ
+  by 4·10⁻⁶. The state is genuinely stationary: no trace of the 1.2 failure
+  mode (which drifted to ρ ≈ 1.22).
+- Mean gate: **FAIL** — |ρ_mean − 1| = 1.275·10⁻² vs gate ≤ 5·10⁻³.
+
+**Why the measured value is the physically correct one.** A driven channel
+holds a streamwise pressure ramp — that is the very physics Phase 1.2b
+restores. With the outlet pinned at ρ = 1, the analytic plane-Poiseuille drop
+is Δρ = 36·ν·u₀·L/H² = 2.21·10⁻² across the channel, so the domain-mean
+offset is ≈ Δρ/2 = 1.10·10⁻², plus a small entrance-region overpressure
+(the uniform-profile inlet). Measured ρ(x) confirms it: a clean linear ramp
+from 1.0212 (x = 20, developed region) to exactly 1.0000 at the outlet,
+slope within 4% of analytic, entrance bump decaying within ~10 cells.
+Substituting Re_H = 20 the offset is 0.9·u₀²·(L/H) — for the spec's grid
+(L/H = 2.5) that is 1.1·10⁻² ≥ 2× the gate. **No correct implementation can
+pass the 5·10⁻³ gate on the spec's own grid**; shrinking L/H below ~1.1 would
+technically pass but makes the channel all entrance region (L_e ≈ H at
+Re_H = 20), defeating the test's meaning.
+
+**Hypothesis.** Threshold misestimate in the spec: 5·10⁻³ was chosen as
+"settles near 1" without computing the Poiseuille ramp mean for the chosen
+grid. Options for the maintainer: gate the mean against the analytic
+prediction (e.g. |ρ_mean − (1 + Δρ_analytic/2)| ≤ 2·10⁻³), or raise the
+absolute gate to ~2·10⁻² (still 10× below the 1.2 failure signature), or gate
+on the outlet-column density instead. Not for the implementer to pick.
+
+## Known limitations (independent of the findings above)
 
 - **2D.** Vortex dynamics at Re ≳ 190 are three-dimensional in reality; 2D
   values (e.g. mean Cd at Re = 100) systematically differ from 3D experiments
