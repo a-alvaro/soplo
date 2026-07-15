@@ -432,15 +432,15 @@ export class LBMSolver {
   }
 
   /**
-   * Domain boundary conditions.
-   *  - Inlet (x=0): equilibrium populations with rho=1, u=(u0,0).
-   *  - Outlet (x=Nx-1): zero-gradient copy from x=Nx-2.
+   * Domain boundary conditions (Zou–He pair, see boundaryConditions.ts).
+   *  - Inlet (x=0): velocity BC, u=(u0,0) prescribed, density computed.
+   *  - Outlet (x=Nx-1): pressure BC, rho=1 prescribed, velocity computed.
    *  - Top/bottom walls: handled by marking those rows as solid; bounce-back
    *    in stream() takes care of no-slip.
    */
   private applyBoundaries(): void {
     applyInlet(this.f, this.Nx, this.Ny, this.u0, this.solid);
-    applyOutlet(this.f, this.Nx, this.Ny);
+    applyOutlet(this.f, this.Nx, this.Ny, this.solid);
   }
 
   /**
