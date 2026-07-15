@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test:fast": "NODE_OPTIONS='--import tsx' vitest run tests/invariants",
-    "test:bench": "NODE_OPTIONS='--import tsx' vitest run tests/benchmarks"
+    "test:bench": "NODE_OPTIONS='--import tsx' vitest run --no-file-parallelism tests/benchmarks"
   },
   "dependencies": {
     "react": "^19.0.0",

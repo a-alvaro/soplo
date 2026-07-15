@@ -22,7 +22,9 @@ import { BLOCKAGE, CYL, buildCylinderCase, printReport } from './helpers';
 const RE = 100;
 const PERTURB_STEPS = 200; // same constant the UI loop uses
 const DISCARD = 30_000; // spec: ≥ ~30,000 steps ≈ 100 convective times
-const MEASURE = 18_000; // ≥ 10 shedding periods (T ≈ 1,730 steps)
+// Sized so the window holds ≥ 10 FULL periods between the first and last
+// Cl zero crossings (T ≈ 1,730 steps; 18k steps yielded only 9 full periods).
+const MEASURE = 21_000;
 
 it('BM-3: cylinder at Re 100 — mean Cd and Strouhal vs literature', { timeout: 60 * 60_000 }, () => {
   const solver = buildCylinderCase(RE);
