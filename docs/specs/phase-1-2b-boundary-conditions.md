@@ -1,8 +1,10 @@
 # Phase 1.2b Spec — Well-posed inlet/outlet boundary conditions
 
-> Status: **approved rev 2** · Owner: Alex · Executed by: coding agent.
-> Rev 2 adds: outlet formula erratum fix, authorization of the MRT ghost-rate
+> Status: **approved rev 3** · Owner: Alex · Executed by: coding agent.
+> Rev 2 added: outlet formula erratum fix, authorization of the MRT ghost-rate
 > change (coupled-system finding), Re-ceiling smoke check.
+> Rev 3 adds: INV-6 mean-offset gate corrected to a physics-referenced
+> threshold (second spec erratum, caught by the discrepancy protocol).
 > Prereq: Phase 1.2 merged (VALIDATION.md documents the open BC finding).
 > This spec **authorizes a change to `src/lbm/boundaryConditions.ts`** under rule 1
 > of `AGENTS.md`, with the justification, scope and revalidation defined below.
@@ -107,9 +109,23 @@ Non-reflecting/characteristic outlets, sponge zones, parabolic inlet profiles
    This test pins the direction mapping.
 2. **New invariant INV-6 (fast tier): mass stationarity in a driven channel.**
    Poiseuille-like channel (small grid, e.g. 120×50, Re_H = 20): run 50,000
-   steps; over the last 40,000, the domain-mean density must show no secular
-   trend: |linear-fit slope| ≤ 1e-9 per step and |ρ_mean − 1| ≤ 5e-3.
-   This is the regression guard for the exact failure mode found in 1.2.
+   steps; over the last 40,000, two gates:
+   - **Secular trend (the regression guard):** |linear-fit slope of ρ_mean|
+     ≤ 1e-9 per step.
+   - **Mean offset (physics-referenced, rev 3):** a driven channel with the
+     outlet anchored at ρ = 1 *must* sit above 1 by half the analytic pressure
+     ramp, Δρ = 36·ν·ū·L/H² (lattice units, p = ρ/3, developed Poiseuille).
+     Gate: |ρ_mean − (1 + Δρ/2)| ≤ 0.5·(Δρ/2), with Δρ computed inside the
+     test from the case's ν, ū, L, H. The 50% margin absorbs entrance-region
+     overpressure; the 1.2 failure mode (drift to ρ ≈ 1.22, ~20× the predicted
+     offset) still fails by an order of magnitude.
+
+   *(Rev 3 erratum: the original absolute gate |ρ_mean − 1| ≤ 5e-3 was chosen
+   without computing the offset the test's own physics imposes (≈ 1.1e-2 on
+   the spec's grid) — no correct implementation could pass it. Same failure
+   pattern as the rev 2 erratum: numeric thresholds must be derived, not
+   guessed. Session evidence: ramp measured linear, slope within 4% of
+   analytic, stationary to 4e-6 over the window.)*
 3. **Full invariant suite** INV-1…INV-5 unchanged and green (tolerances as spec'd).
 4. **BM-1 and BM-2 re-run**: must now converge and pass their original
    acceptance windows (spec §1.2, unchanged).
