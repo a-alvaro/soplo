@@ -27,11 +27,11 @@
 | Lattice inlet velocity | `u₀ = 0.07 lu`, fixed, never user-facing | Keeps Ma ≪ 1; the physical-units UX depends on it |
 | τ clamp | `[0.501, 1.8]`; stable band `[0.51, 1.5]` | Below 0.51 the MRT scheme oscillates; the safety indicator encodes these exact bounds |
 | Safe Reynolds | `Re_safe ≈ 21 · D_cells` (D = full diameter/side/chord in cells, never the half-length) | Derived from τ_lo; used by UI warnings and must match `physicsToLBM.ts` |
-| MRT relaxation rates | conserved = 1.0; ghosts e/eps = 1.8, qx/qy = 1.7; stress pxx/pxy = 1/τ | Empirically tuned: ~3× more stable Re than Lallemand–Luo defaults, no measurable physics impact |
+| MRT relaxation rates | conserved = 1.0; ghosts e/eps = 1.4, qx/qy = 1.2 (Lallemand–Luo 2000); stress pxx/pxy = 1/τ | **Coupled system with the boundary scheme** (spec 1.2b): the old aggressive ghosts (1.8/1.7) were stable only under the legacy equilibrium inlet, which wiped boundary non-equilibrium each step; with wet-node Zou–He BCs, s_e ≳ 1.6 is linearly unstable at every τ. Never change rates or BC scheme independently — revalidate the pair (INV-2/4/6 + benchmarks) |
 | Force timing | Momentum exchange accumulates **post-collision, pre-stream** | Required by the Ladd MEM formula; moving the call produces wrong forces |
 | Solid encoding | `solid=1` domain walls (excluded from forces), `solid=2` aerodynamic bodies (included) | Force measurement correctness |
 | Axis / force signs | Lattice +x = downstream, +y = physical up (renderer flips y at draw time); `Cd = +Fx`, `Cl = +Fy`; positive AoA = nose up via `−aoa` rotation | Verified empirically (NACA ±10° antisymmetry); see `docs/specs/cl-sign-convention.md` |
-| Boundary layout | Inlet = left (velocity equilibrium, skips solid cells), outlet = right (zero-gradient), walls via bounce-back | Validation logic in `App.tsx` enforces left/right for now |
+| Boundary layout | Inlet = left (Zou–He velocity, u = (u₀,0), density free, skips solid cells), outlet = right (Zou–He pressure, ρ = 1 reference), walls via bounce-back | Well-posed pair (spec 1.2b): fixing pressure at both ends chokes the flow. Validation logic in `App.tsx` enforces left/right for now |
 | f-array layout | `f[i * Nx*Ny + x*Ny + y]` | All hot loops assume it |
 | Solver storage precision | `Float64Array` for all population/field arrays | INV-1/INV-2 tolerances (1e-12/1e-10) assume double precision; changing storage precision invalidates them and requires a spec |
 

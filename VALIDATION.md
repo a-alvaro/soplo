@@ -13,15 +13,15 @@ coefficients come from `LBMSolver.computeForces()` — the exact code path the
 UI uses, no test-local normalization. Sign conventions:
 [`docs/specs/cl-sign-convention.md`](./docs/specs/cl-sign-convention.md).
 
-## Summary (2026-07-14)
+## Summary (2026-07-16, Zou–He BC pair + Lallemand–Luo ghost rates)
 
 | Case | Quantity | Measured | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
-| BM-1 Poiseuille, Re_H = 20 | L2(u_x) vs analytic parabola | 0.80% at best (see finding) | exact solution | ≤ 1% | ❌ **open finding** |
-| BM-2 Cylinder, Re = 20 | Cd | no convergence (see finding) | 2.05 (2.0–2.1)¹ | ±6% | ❌ **open finding** |
-| BM-2 Cylinder, Re = 20 | Cl | ~10⁻¹⁴ during run | 0 | ≤ 0.01 | ✅ (informative) |
-| BM-3 Cylinder, Re = 100 | mean Cd | 1.403 (+4.70%) | 1.34 (1.33–1.35)² | ±7% | ✅ |
-| BM-3 Cylinder, Re = 100 | St | 0.1604 (−2.77%) | 0.165 (0.164³) | ±5% | ✅ |
+| BM-1 Poiseuille, Re_H = 20 | L2(u_x) vs analytic parabola | **0.159%**, converged 36.5k steps | exact solution | ≤ 1% | ✅ |
+| BM-2 Cylinder, Re = 20 | Cd | no convergence in 80k steps; last Cd = 2.490 | 2.05 (2.0–2.1)¹ | ±6% | ❌ **open finding** |
+| BM-3 Cylinder, Re = 100 | mean Cd | 1.546 (+15.4%) | 1.34 (1.33–1.35)² | ±7% | ❌ **open finding** |
+| BM-3 Cylinder, Re = 100 | St | 0.1743 (+5.6%) | 0.165 (0.164³) | ±5% | ❌ **open finding** |
+| Re-ceiling smoke (rev 2, informative) | finiteness at τ = 0.51008 | finite through 25k steps, D = 12, Re = 250 ≈ 21·D | — | non-gating | ✅ |
 
 ¹ Dennis & Chang (1970), Fornberg (1980), Coutanceau & Bouard (1977) — steady
 regime; recirculation length L_r/D ≈ 0.92.
@@ -29,37 +29,66 @@ regime; recirculation length L_r/D ≈ 0.92.
 1.33–1.35.
 ³ Williamson (1989), experimental St–Re relationship: St = 0.164 at Re = 100.
 
-## BM-3 · Cylinder at Re = 100 (von Kármán street) — PASS
+Reference values are for **unbounded** flow; the cylinder cases run confined
+(β = 5%, bounce-back side walls). See the open finding below: with the
+well-posed BCs the confinement/discretization biases are no longer masked by
+the old secular drift, and the windows may need recalibrating against
+confined references — a maintainer/spec decision, not the implementer's.
 
-Domain 720×400 (D = 20 cells, blockage β = 5%), bounce-back side walls,
-velocity inlet / zero-gradient outlet. Transverse perturbation injected the
-first 200 steps (as in the UI); the first 30,000 steps (~100 convective times)
-discarded; statistics over 18,000 steps (≥ 10 shedding periods). Strouhal is
-measured from upward zero crossings of the mean-removed Cl signal.
+## BM-1 · Plane Poiseuille, Re_H = 20 — PASS
+
+Channel 300×52 (H = 50 fluid rows, half-way walls at ŷ = 0 and ŷ = H),
+τ = 1.025, Zou–He velocity inlet / Zou–He pressure outlet. Profile measured
+at x = 5H against the flux-matched analytic parabola.
+
+```
+================ BM-1 · Plane Poiseuille, Re_H = 20 ================
+setup: channel 300×52 (H = 50 fluid rows, walls at ŷ = 0 and ŷ = H), τ = 1.025,
+       profile at x = 250 = 5H, converged after 36500 steps
+PASS  L2(u_x profile vs analytic parabola): measured 0.159%  | literature exact solution (tolerance 1%)  | rel.err 0.159%
+PASS  peak/mean ratio (analytic: 1.500): measured 1.4964  | literature 1.500  | rel.err -0.24%
+```
+
+The case the old BCs killed outright (exponential choking, no convergence
+ever) now converges in 36,500 steps to L2 = 0.159% — five times inside the
+gate, with the peak/mean ratio at −0.24% of analytic. This is the only case
+with an exact solution, and it validates viscosity, wall placement and the
+new BC pair in one shot.
+
+## BM-3 · Cylinder at Re = 100 — previous PASS ANNULLED; re-run out of window
+
+The 2026-07-14 PASS (Cd = 1.403, St = 0.1604) was measured under the old BC
+pair whose secular drift biased both values low; spec 1.2b voids it. Re-run
+under the well-posed system (same domain, discard and windows; 12 full
+shedding periods):
 
 ```
 ================ BM-3 · Cylinder, Re = 100 (von Kármán) ================
-setup: 720×400, D = 20 (β = 5%), bounce-back side walls, perturbed first
-       200 steps, 30000 steps discarded, measured over 21000 steps = 11
-       full shedding periods
-PASS  mean Cd: measured 1.403 | literature 1.34 (range 1.33–1.35) | rel.err 4.70%
-PASS  St (Cl zero crossings): measured 0.1604 | literature 0.165 | rel.err -2.77%
-PASS  Cl amplitude (informative): measured 0.412 | ≈ 0.23–0.35 (2D simulations)
+setup: 720×400, D = 20 (β = 5%), bounce-back side walls, perturbed first 200
+       steps, 30000 steps discarded, measured over 21000 steps = 12 full
+       shedding periods
+FAIL  mean Cd: measured 1.546  | literature 1.34 (range 1.33–1.35)  | rel.err 15.39%
+FAIL  St (Cl zero crossings): measured 0.1743  | literature 0.165 (Williamson: 0.164)  | rel.err 5.61%
+PASS  Cl amplitude (informative): measured 0.407  | ≈ 0.23–0.35 (2D simulations)
 ```
 
-Mean Cd sits +4.7% above the 2D-literature center — consistent in sign and
-magnitude with the 5% blockage and bounce-back side walls (confined cylinders
-read higher Cd). The Cl amplitude (0.412) is likewise on the high side of the
-2D range, same expected confinement bias; it is reported as informative only.
-Runtime: ~18 min on an Apple M5 (single process).
+**Drift-bias shift (old → new, the quantity spec 1.2b asked to record):**
+Cd 1.403 → 1.546 (+10.2%), St 0.1604 → 0.1743 (+8.7%). This shift *is* the
+bias the old choking drift introduced: the decaying effective velocity read
+as lower forces and lower shedding frequency, and happened to land both
+values inside windows written for unbounded flow. The old PASS was two
+errors cancelling. See the open finding below.
 
-## Open finding: velocity inlet over-constrains density (affects BM-1, BM-2)
+## Resolved finding: velocity inlet over-constrains density (was blocking BM-1, BM-2)
 
-**Status:** blocking BM-1 and BM-2 · discovered 2026-07-14 during this phase ·
-fix (Zou–He pair + ghost-rate retune, spec 1.2b rev 2) is applied on branch
-`phase-1-2b-boundary-conditions` with the fast tier green and the channel
-showing the correct stationary pressure ramp; formal closure is pending the
-benchmark re-runs, which are halted at the INV-6 threshold finding below.
+**Status:** RESOLVED (2026-07-16) by the Phase 1.2b system change — Zou–He
+velocity inlet (free density) + Zou–He pressure outlet (ρ = 1) + Lallemand–Luo
+ghost rates. Evidence of closure: BM-1 now converges in 36.5k steps to
+L2 = 0.159% (it previously choked exponentially and never converged); INV-6
+holds the driven channel stationary to a fitted slope of −5.4·10⁻¹²/step with
+the domain mean sitting exactly on the analytic Poiseuille ramp. The
+cylinder-benchmark windows opened a *different*, successor finding — see
+"BM-2/BM-3 out of window" below. Original record kept for reference.
 
 **Symptom (BM-1, channel 300×52, Re_H = 20, τ = 1.025).** The velocity profile
 develops the correct parabolic *shape* (peak/mean = 1.513 vs analytic 1.5; L2
@@ -192,6 +221,58 @@ grid. Options for the maintainer: gate the mean against the analytic
 prediction (e.g. |ρ_mean − (1 + Δρ_analytic/2)| ≤ 2·10⁻³), or raise the
 absolute gate to ~2·10⁻² (still 10× below the 1.2 failure signature), or gate
 on the outlet-column density instead. Not for the implementer to pick.
+
+## Open finding: BM-2/BM-3 out of window under the well-posed system
+
+**Status:** open · discovered 2026-07-16 on re-running the benchmarks under
+the Zou–He + Lallemand–Luo system · discrepancy protocol: documented, nothing
+recalibrated, revalidation halted at this point (app smoke check and phase
+closure pending). Maintainer decision needed.
+
+**Measured.**
+
+- **BM-2 (Re = 20, 720×400, τ = 0.71):** Cd does not meet the convergence
+  gate (ΔCd/Cd ≤ 10⁻⁵ per 1,000 steps) within the 80,000-step safety cap;
+  last Cd = 2.490, above the 1.93–2.17 window. Note the *behavior* changed
+  qualitatively vs the old BCs: then, Cd decayed secularly through the whole
+  literature range (2.32 → 1.49 over 150k steps, mass piling up); now it
+  sits high. Whether it is still slowly relaxing downward, oscillating below
+  the gate's resolution, or genuinely converged-but-high cannot be
+  distinguished from the test output — the cheap discriminator is a
+  diagnostic re-run logging Cd(t), ~2.2 min per 1,000 steps on this domain.
+- **BM-3 (Re = 100):** mean Cd = 1.546 (+15.4% vs unbounded 1.34; window
+  ±7%), St = 0.1743 (+5.6% vs 0.165; window ±5%, missed by 0.0013).
+  Cl amplitude 0.407 (informative; high side of 2D range, as before).
+
+**Quantified biases (diagnostics on the BM domain).**
+
+- **Rasterized diameter:** the D = 20 disk rasterizes to 312 cells
+  (area-equivalent D_eff = 19.93) but its cross-flow solid extent is 20 rows
+  → hydrodynamic width ≈ 21 with half-way bounce-back. Cd normalizes by
+  D = 20 while the flow sees ~21: ≈ +5% on Cd.
+- **Incident velocity:** measured on the centerline 5–8 D upstream of the
+  cylinder (BM-2 setup, 8k steps): +1.0–1.2% over u₀ (inlet flux itself
+  +0.54%, wall boundary layers thin at these x). ≈ +2% on Cd, ≈ +1% on St.
+- **Confinement:** β = 5% with no-slip walls raises Cd a few % and St ~2–4%
+  relative to unbounded references (the windows are written against
+  unbounded values).
+
+**Hypothesis.** The old drift biased both quantities *down* and happened to
+park them inside unbounded-flow windows — the 2026-07-14 BM-3 PASS was two
+errors cancelling (recorded shift: Cd +10.2%, St +8.7%). The identified
+biases above compose to roughly +8–11% on Cd and +3–5% on St, accounting for
+most but not all of the excess (residual ~3–6% on Cd, ~1–2% on St). Candidate
+explanations for the residual, in decreasing plausibility: (a) the acceptance
+windows simply need recalibrating against *confined* (β = 5%, no-slip)
+references and/or an effective-diameter-aware normalization — a spec
+revision; (b) the Zou–He pressure outlet is acoustically reflective and the
+anchored ρ = 1 plane 25 D downstream stiffens the wake dynamics relative to
+the convective outflow implied by unbounded references — testable by moving
+the outlet or comparing against a longer domain; (c) a genuine post-change
+force-path bias not caught by INV-1…6 — considered unlikely given BM-1's
+0.159% and the exact BC-1 moments, but not excluded. Per the discrepancy
+protocol, choosing among these (or revising the spec) is the maintainer's
+call.
 
 ## Known limitations (independent of the findings above)
 
