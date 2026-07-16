@@ -152,12 +152,13 @@ u_y = 2(f_N − f_S)/ρ). The implementation always used the
 constraint-consistent signs, pinned by BC-1: f_NW = f_SE − ½(f_N − f_S) −
 (1/6)ρu, f_SW = f_NE + ½(f_N − f_S) − (1/6)ρu.
 
-## Open finding (Phase 1.2b rev 2): INV-6 mean-density gate is below the analytic Poiseuille offset
+## Resolved finding (Phase 1.2b rev 2): INV-6 mean-density gate was below the analytic Poiseuille offset
 
-**Status:** halts the rev 2 revalidation sequence at its step 2 (INV-6);
-discovered 2026-07-15 · discrepancy protocol: documented, nothing recalibrated,
-benchmarks BM-1/BM-2/BM-3 not yet re-run (they follow INV-6 in the mandatory
-order). Maintainer decision needed on the threshold.
+**Status:** RESOLVED by spec rev 3 (2026-07-16) — the mean gate is now
+referenced to the physics the test itself imposes:
+|ρ_mean − (1 + Δρ/2)| ≤ 0.5·(Δρ/2) with Δρ = 36·ν·ū·L/H² computed inside the
+test. INV-6 passes (measured 1.012749 vs predicted 1.011025, deviation 31% of
+the allowed margin); the slope gate is unchanged. Evidence kept below.
 
 **Setup (exactly as spec'd).** Driven channel 120×50 (walls on rows 0/49,
 H = 48), u₀ = 0.07, Re_H = 20 → ν = 0.168, τ = 1.004. 50,000 steps; domain-mean

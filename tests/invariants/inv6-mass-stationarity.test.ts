@@ -1,13 +1,18 @@
 import { expect, it } from 'vitest';
 import { LBMSolver } from '../../src/lbm/LBMSolver';
 
-// INV-6 (docs/specs/phase-1-2b-boundary-conditions.md): mass stationarity in
-// a driven channel — the regression guard for the Phase 1.2 failure mode
-// (inlet pinning pressure + anchorless outlet → secular pressurization until
-// the flow chokes). With the Zou–He pair the domain-mean density must settle
-// near the outlet reference ρ = 1 and show no secular trend: over the last
-// 40,000 of 50,000 steps, |linear-fit slope| ≤ 1e-9 per step and
-// |ρ_mean − 1| ≤ 5e-3.
+// INV-6 (docs/specs/phase-1-2b-boundary-conditions.md, rev 3): mass
+// stationarity in a driven channel — the regression guard for the Phase 1.2
+// failure mode (inlet pinning pressure + anchorless outlet → secular
+// pressurization until the flow chokes). Two gates over the last 40,000 of
+// 50,000 steps:
+//  - secular trend: |linear-fit slope of ρ_mean| ≤ 1e-9 per step;
+//  - mean offset, physics-referenced (rev 3): with the outlet anchored at
+//    ρ = 1 the domain mean must sit above 1 by half the analytic Poiseuille
+//    ramp Δρ = 36·ν·ū·L/H²: |ρ_mean − (1 + Δρ/2)| ≤ 0.5·(Δρ/2). The 50%
+//    margin absorbs entrance-region overpressure; the 1.2 failure mode
+//    (drift to ρ ≈ 1.22, ~20× the predicted offset) still fails by an
+//    order of magnitude.
 const NY = 50; // rows 0 and 49 are walls; H = 48 fluid rows
 const NX = 120;
 const H = NY - 2;
@@ -19,7 +24,11 @@ const TOTAL_STEPS = 50_000;
 const WINDOW_START = 10_000; // measure over the last 40,000 steps
 const SAMPLE_EVERY = 50;
 const SLOPE_TOL = 1e-9; // per step
-const MEAN_TOL = 5e-3;
+// Analytic Poiseuille ramp for this case (lattice units, p = ρ/3): the
+// domain-mean density must sit half the ramp above the outlet reference.
+const DRHO = (36 * NU * U0 * NX) / (H * H);
+const MEAN_PREDICTED = 1 + DRHO / 2;
+const MEAN_TOL = 0.5 * (DRHO / 2);
 
 it(`INV-6: domain-mean density is stationary over a ${TOTAL_STEPS}-step driven channel`, { timeout: 120_000 }, () => {
   const solver = new LBMSolver({ Nx: NX, Ny: NY, tau: TAU, u0: U0 });
@@ -62,7 +71,9 @@ it(`INV-6: domain-mean density is stationary over a ${TOTAL_STEPS}-step driven c
       `(window mean ρ = ${rBar.toFixed(6)}, ${n} samples)`,
   ).toBeLessThanOrEqual(SLOPE_TOL);
   expect(
-    Math.abs(rBar - 1),
-    `window-mean density offset ${(rBar - 1).toExponential(3)} exceeds ${MEAN_TOL}`,
+    Math.abs(rBar - MEAN_PREDICTED),
+    `window-mean density ${rBar.toFixed(6)} deviates from the analytic ` +
+      `prediction ${MEAN_PREDICTED.toFixed(6)} (Δρ/2 = ${(DRHO / 2).toExponential(3)}) ` +
+      `by more than ${MEAN_TOL.toExponential(3)}`,
   ).toBeLessThanOrEqual(MEAN_TOL);
 });
