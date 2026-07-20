@@ -1,13 +1,18 @@
 import { expect, it } from 'vitest';
 import { BLOCKAGE, CYL, buildCylinderCase, printReport } from './helpers';
 
-// BM-3 (docs/specs/phase-1-validation.md §1.2): circular cylinder at Re = 100
+// BM-3 (docs/specs/phase-1-validation.md §1.2; official setup per
+// docs/specs/phase-1-2d-benchmark-closure.md): circular cylinder at Re = 100
 // — saturated von Kármán vortex street.
 //
 // Literature: mean Cd ≈ 1.33–1.35; St = f·D/u0 ≈ 0.164–0.166 (Williamson's
 // experiments give 0.164 at Re = 100). Acceptance: mean Cd within ±7% of
 // 1.34 (1.246–1.434); St within ±5% of 0.165 (0.157–0.173), measured from
 // zero crossings of the mean-removed Cl signal.
+//
+// Time windows are scaled with D/u0 from the D = 20 setup (spec 1.2c D-3):
+// 45,000 steps discarded, 31,500 measured — sized to hold ≥ 10 full periods
+// between the first and last Cl zero crossings (T ≈ 2,600 steps at D = 30).
 //
 // Cd/Cl come from solver.computeForces() — the exact code path the UI uses.
 // Sign convention per docs/specs/cl-sign-convention.md: Cd = +Fx, Cl = +Fy
@@ -21,12 +26,10 @@ import { BLOCKAGE, CYL, buildCylinderCase, printReport } from './helpers';
 
 const RE = 100;
 const PERTURB_STEPS = 200; // same constant the UI loop uses
-const DISCARD = 30_000; // spec: ≥ ~30,000 steps ≈ 100 convective times
-// Sized so the window holds ≥ 10 FULL periods between the first and last
-// Cl zero crossings (T ≈ 1,730 steps; 18k steps yielded only 9 full periods).
-const MEASURE = 21_000;
+const DISCARD = 45_000; // D = 20 spec value (30,000) scaled by D/u0
+const MEASURE = 31_500; // ≥ 10 full periods at D = 30 (11 measured in 1.2c D-3)
 
-it('BM-3: cylinder at Re 100 — mean Cd and Strouhal vs literature', { timeout: 60 * 60_000 }, () => {
+it('BM-3: cylinder at Re 100 — mean Cd and Strouhal vs literature', { timeout: 180 * 60_000 }, () => {
   const solver = buildCylinderCase(RE);
 
   for (let s = 0; s < DISCARD; s++) {
@@ -68,7 +71,7 @@ it('BM-3: cylinder at Re 100 — mean Cd and Strouhal vs literature', { timeout:
 
   printReport(
     'BM-3 · Cylinder, Re = 100 (von Kármán)',
-    `${CYL.Nx}×${CYL.Ny}, D = ${CYL.D} (β = ${(BLOCKAGE * 100).toFixed(0)}%), bounce-back side walls, ` +
+    `${CYL.Nx}×${CYL.Ny}, D = ${CYL.D} (β = ${(BLOCKAGE * 100).toFixed(0)}%), free-slip side walls, ` +
       `perturbed first ${PERTURB_STEPS} steps, ${DISCARD} steps discarded, ` +
       `measured over ${MEASURE} steps = ${periods} full shedding periods`,
     [
