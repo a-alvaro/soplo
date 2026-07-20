@@ -13,14 +13,21 @@ coefficients come from `LBMSolver.computeForces()` — the exact code path the
 UI uses, no test-local normalization. Sign conventions:
 [`docs/specs/cl-sign-convention.md`](./docs/specs/cl-sign-convention.md).
 
-## Summary (2026-07-16, Zou–He BC pair + Lallemand–Luo ghost rates)
+## Summary (2026-07-20, official setups: D = 30 free-slip cylinders)
+
+Phase 1.2 closure. The cylinder benchmarks now run their **official** setup
+per the phase 1.2d endpoint decisions: D = 30 cells, blockage β = 5%
+(Ny = 600, Nx = 1080), **free-slip side walls** — the standard configuration
+for comparing a confined tunnel against unconfined references. BM-1 keeps
+no-slip walls (its physics requires them). The app default is unchanged
+(no-slip); free-slip is a benchmark option.
 
 | Case | Quantity | Measured | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
 | BM-1 Poiseuille, Re_H = 20 | L2(u_x) vs analytic parabola | **0.159%**, converged 36.5k steps | exact solution | ≤ 1% | ✅ |
-| BM-2 Cylinder, Re = 20 | Cd | no convergence in 80k steps; last Cd = 2.490 | 2.05 (2.0–2.1)¹ | ±6% | ❌ **open finding** |
-| BM-3 Cylinder, Re = 100 | mean Cd | 1.546 (+15.4%) | 1.34 (1.33–1.35)² | ±7% | ❌ **open finding** |
-| BM-3 Cylinder, Re = 100 | St | 0.1743 (+5.6%) | 0.165 (0.164³) | ±5% | ❌ **open finding** |
+| BM-2 Cylinder, Re = 20 (D = 30) | Cd (windowed mean) | 2.190, converged | 2.05 (2.0–2.1)¹ | ±6% | ❌ **open finding** (+6.8%) |
+| BM-3 Cylinder, Re = 100 (D = 30) | mean Cd | **1.428** (+6.6%) | 1.34 (1.33–1.35)² | ±7% | ✅ |
+| BM-3 Cylinder, Re = 100 (D = 30) | St | **0.1691** (+2.5%) | 0.165 (0.164³) | ±5% | ✅ |
 | Re-ceiling smoke (rev 2, informative) | finiteness at τ = 0.51008 | finite through 25k steps, D = 12, Re = 250 ≈ 21·D | — | non-gating | ✅ |
 
 ¹ Dennis & Chang (1970), Fornberg (1980), Coutanceau & Bouard (1977) — steady
@@ -29,15 +36,18 @@ regime; recirculation length L_r/D ≈ 0.92.
 1.33–1.35.
 ³ Williamson (1989), experimental St–Re relationship: St = 0.164 at Re = 100.
 
-Reference values are for **unbounded** flow; the cylinder cases run confined
-(β = 5%, bounce-back side walls). See the open finding below: with the
-well-posed BCs the confinement/discretization biases are no longer masked by
-the old secular drift, and the windows may need recalibrating against
-confined references — a maintainer/spec decision, not the implementer's.
-Phase 1.2c diagnostics (2026-07-17, free-slip side walls — informative, the
-shipped suite still runs the no-slip default): BM-2 Cd 2.214 oscillating
-under the gate; BM-3 Cd 1.4740 / St 0.1674 (St in window); BM-3 at D = 30
-Cd 1.4273 / St 0.1692 (both in window). Details in the open finding.
+**Two of three benchmarks pass at the official setup; BM-2 is a converged,
+documented open finding.** Reference values are for **unbounded** flow. The
+excess over unbounded windows decomposes into two *measured* biases — wall
+boundary layers (removed by free-slip walls) and staircase/resolution
+(removed by the D = 20 → 30 refinement, first-order in 1/D) — see the
+refinement study below. For **BM-3** both biases fully account for the excess:
+at D = 30 free-slip it lands inside both windows and the 1/D extrapolation
+sits on the reference (finding closed). For **BM-2** they do not: refinement
+barely moves it and the 1/D extrapolation misses the reference by +4.5%; the
+residual is the reflective outlet's acoustic cavity mode. Per the phase 1.2d
+hard rule, BM-2 outside 2.05 ± 6% at D = 30 is a **stop-and-report** — no
+window edits, no retuning — and phase close-out is deferred to the maintainer.
 
 ## BM-1 · Plane Poiseuille, Re_H = 20 — PASS
 
@@ -59,29 +69,137 @@ gate, with the peak/mean ratio at −0.24% of analytic. This is the only case
 with an exact solution, and it validates viscosity, wall placement and the
 new BC pair in one shot.
 
-## BM-3 · Cylinder at Re = 100 — previous PASS ANNULLED; re-run out of window
+## BM-2 · Cylinder at Re = 20 (D = 30, free-slip) — converged, out of window
 
-The 2026-07-14 PASS (Cd = 1.403, St = 0.1604) was measured under the old BC
-pair whose secular drift biased both values low; spec 1.2b voids it. Re-run
-under the well-posed system (same domain, discard and windows; 12 full
-shedding periods):
+Official setup: 1080×600, D = 30 (β = 5%), free-slip side walls. Full
+150,000-step run; the convergence gate and reported Cd use the final 50,000
+steps (corrected gate below). BM-2 has no perturbation/RNG, so the run is
+bit-reproducible and the reported Cd is deterministic.
+
+```
+================ BM-2 · Cylinder, Re = 20 (steady) ================
+setup: 1080×600, D = 30 (β = 5%), free-slip side walls, 150000 steps,
+       gate on final 50000 steps (two 25000-step window means within 0.2%:
+       2.1895/2.1903), Cd = mean over that tail
+FAIL  Cd (windowed mean): measured 2.190  | literature 2.05 (range 2.0–2.1)  | rel.err 6.82%
+PASS  |Cl| max over tail (symmetry at scale): measured 1.09e-13  | 0 (tolerance 0.01)
+INFO  Cd oscillation (outlet cavity mode): ±0.0504, period ≈ 1682 steps  | acoustic round trip 2·Nx/c_s ≈ 3741 steps
+INFO  L_r/D (not gating): measured 0.995  | ≈ 0.92
+```
+
+Cd = 2.190 is **converged** (the two 25k tail windows agree to 0.04%) but
++6.82% above the reference and +0.9% above the window top (2.17). It is not
+drifting (mean density stationary at 0.9997, |Cl| ~ 1e-13) and not shedding
+(Re = 20 is far below the onset Re ≈ 47): the ±0.05 oscillation is the outlet
+acoustic cavity mode (below), which the windowed mean averages out. The
+residual excess is analysed in the refinement study and the open finding.
+
+## BM-3 · Cylinder at Re = 100 (D = 30, free-slip) — PASS
+
+The 2026-07-14 PASS (Cd = 1.403, St = 0.1604) under the old BC pair was voided
+by spec 1.2b — its secular drift biased both values low (two errors
+cancelling: Cd +10.2%, St +8.7% on the re-run). The official benchmark now
+runs the well-posed system at the refined setup: 1080×600, D = 30 (β = 5%),
+free-slip side walls, time windows scaled with D/u₀ (45,000 discarded, 31,500
+measured). Perturbation is injected the first 200 steps (UI-mirrored); the
+saturated limit cycle is what is measured (its statistics are reproducible,
+the random transient is not).
 
 ```
 ================ BM-3 · Cylinder, Re = 100 (von Kármán) ================
-setup: 720×400, D = 20 (β = 5%), bounce-back side walls, perturbed first 200
-       steps, 30000 steps discarded, measured over 21000 steps = 12 full
+setup: 1080×600, D = 30 (β = 5%), free-slip side walls, perturbed first 200
+       steps, 45000 steps discarded, measured over 31500 steps = 12 full
        shedding periods
-FAIL  mean Cd: measured 1.546  | literature 1.34 (range 1.33–1.35)  | rel.err 15.39%
-FAIL  St (Cl zero crossings): measured 0.1743  | literature 0.165 (Williamson: 0.164)  | rel.err 5.61%
-PASS  Cl amplitude (informative): measured 0.407  | ≈ 0.23–0.35 (2D simulations)
+PASS  mean Cd: measured 1.428  | literature 1.34 (range 1.33–1.35)  | rel.err 6.55%
+PASS  St (Cl zero crossings): measured 0.1691  | literature 0.165 (Williamson: 0.164)  | rel.err 2.48%
+PASS  Cl amplitude (informative): measured 0.375  | ≈ 0.23–0.35 (2D simulations)
 ```
 
-**Drift-bias shift (old → new, the quantity spec 1.2b asked to record):**
-Cd 1.403 → 1.546 (+10.2%), St 0.1604 → 0.1743 (+8.7%). This shift *is* the
-bias the old choking drift introduced: the decaying effective velocity read
-as lower forces and lower shedding frequency, and happened to land both
-values inside windows written for unbounded flow. The old PASS was two
-errors cancelling. See the open finding below.
+Both gating quantities inside their windows: mean Cd 1.428 (window
+1.246–1.434) and St 0.1691 (window 0.157–0.173). This is the first
+fully-passing cylinder benchmark under the well-posed BC system, and it
+validates the excess decomposition — the two measured biases (wall-BL and
+staircase/resolution) account for the entire Re = 100 excess.
+
+## Refinement study — the staircase bias is first-order in 1/D (headline result)
+
+The cylinder rasterises on the lattice; half-way bounce-back on a curved
+surface carries an O(1-cell) geometric error that biases Cd high and shrinks
+with resolution. Measuring both benchmarks at D = 20 and D = 30 (free-slip,
+β = 5% held constant) isolates this staircase/resolution bias and, via a
+two-point 1/D fit (Cd = a + b/D), extrapolates it away:
+
+| Quantity | D = 20 free-slip | D = 30 free-slip | shift | 1/D → ∞ | reference |
+|---|---|---|---|---|---|
+| BM-2 Cd | 2.214 | 2.190 | −1.09% | **2.14** | 2.05 |
+| BM-3 Cd | 1.4740 | 1.428 | −3.12% | **1.336** | 1.34 (1.33–1.35) |
+| BM-3 St | 0.1674 | 0.1691 | +1.06% | ≈ 0.173 | 0.165 |
+
+(D = 20 free-slip values from the phase 1.2c diagnostics; D = 30 from the
+official runs. Two-point, first-order extrapolation — informative, not a
+gate.)
+
+**BM-3 is the clean case.** Cd moves materially toward the reference under
+refinement (−3.12%) and the 1/D extrapolation lands at 1.336 — on the
+established 2D range (1.33–1.35), −0.30% from 1.34. The staircase bias is
+fully accounted: the D = 30 measured value is already inside the window and
+the D → ∞ limit is the unconfined reference. St is roughly flat under
+refinement and extrapolates to ≈ 0.173 (window top) — still inside.
+
+**BM-2 is the discriminator.** Refinement moves it only −1.09% (a third of
+BM-3's shift), and the 1/D extrapolation lands at 2.14 — inside the window
+but **+4.5% off the reference** (2.05), not on it as BM-3's is. Refinement
+neither reaches the reference nor brings the measured D = 30 value into
+window. The maintainer's on-record prediction (Cd(30) ≈ 2.16–2.17,
+extrapolated ≈ 2.06) is **not borne out**: measured 2.190 and extrapolated
+2.14 are both high. This is the resolution discriminator doing its job — it
+rules resolution *out* as the dominant residual for BM-2 and points at the
+D-independent mechanism below.
+
+## Outlet acoustic cavity mode (BM-2) — the dominant BM-2 residual
+
+The Zou–He pressure outlet anchors ρ = 1 on a plane and is acoustically
+reflective; so is the Zou–He velocity inlet. Between them the domain is a
+resonant cavity. At Re = 20 there is no vortex shedding (onset Re ≈ 47), so
+the Cd oscillation is purely this acoustic mode:
+
+| | D = 20 (Nx = 720) | D = 30 (Nx = 1080) |
+|---|---|---|
+| dominant period | ≈ 2200 steps | ≈ 1682 steps |
+| acoustic round trip 2·Nx/c_s | ≈ 2494 steps | ≈ 3741 steps |
+| half-amplitude | ±0.0094 | ±0.0504 |
+| as fraction of Cd | ±0.42% | ±2.30% |
+
+The period is of order the inlet–outlet acoustic transit (Nx/c_s), which
+identifies the source. The mode is **bounded and mean-stationary** — it does
+not drift, and the windowed mean over ≥ 20 periods averages it out — which is
+why the corrected gate (below) is a measurement fix, not a tolerance
+relaxation. But its amplitude **grows with domain size** (±0.42% → ±2.30% of
+Cd from D = 20 to D = 30). That growth is a second, independent line of
+evidence that the outlet mode — not resolution — is the dominant BM-2
+residual: a resolution bias would shrink under refinement; this one
+strengthens.
+
+## Corrected BM-2 convergence gate (measurement-definition fix)
+
+The phase 1.2 gate (|ΔCd|/Cd ≤ 1e-5 over 1,000 steps) is **unsatisfiable** in
+the presence of the acoustic mode: at D = 20, amplitude ±0.0094 with period
+≈ 2200 steps produces in-window excursions of order
+2·0.0094·sin(π·1000/2200) ≈ 0.019 per 1,000 steps — three orders of magnitude
+above the gate. No stationary state can pass it; the "non-convergence" it
+reported was the mode, not drift.
+
+Corrected gate (spec 1.2d): run the full budget, split the final 50,000 steps
+into two consecutive 25,000-step windows, and require their mean Cd to agree
+to ≤ 0.2% (relative). The **reported Cd is the mean over that final 50,000
+steps** (≥ 20 acoustic periods). The acceptance window is **unchanged**
+(2.05 ± 6%); only the definition of "converged" changed. The gate is applied
+to the tail of a *completed* fixed-budget run, never as a sliding early-stop:
+the transient does not settle until ~50,000 steps (Cd spikes to ~2.42 at 10k,
+dips to ~2.00 at 20k), and two windows evaluated across it can agree by chance
+at a non-stationary value — a false positive observed and discarded during
+this session. This is the fourth spec erratum of the phase in the same
+family: numeric gates and claims must carry their derivation.
 
 ## Resolved finding: velocity inlet over-constrains density (was blocking BM-1, BM-2)
 
@@ -226,113 +344,61 @@ prediction (e.g. |ρ_mean − (1 + Δρ_analytic/2)| ≤ 2·10⁻³), or raise t
 absolute gate to ~2·10⁻² (still 10× below the 1.2 failure signature), or gate
 on the outlet-column density instead. Not for the implementer to pick.
 
-## Open finding: BM-2/BM-3 out of window under the well-posed system
+## Open finding: BM-2 residual is outlet reflectivity (stop-and-report)
 
-**Status:** open · discovered 2026-07-16 on re-running the benchmarks under
-the Zou–He + Lallemand–Luo system · updated 2026-07-17 (phase 1.2c): the
-free-slip diagnostics below remove the wall-BL bias and isolate the residual
-as staircase/resolution bias (D-3 refinement discriminator; the 1/D
-extrapolation of Cd lands on the unbounded reference). Per the 1.2c decision
-tree this is a protocol stop: no windows or tolerances changed, benchmarks
-still run the no-slip default. Maintainer decision needed — raise BM-3 to
-D = 30 as the spec'd setup, or derive a documented D = 20 tolerance from the
-measured refinement trend.
+**Status:** open · BM-2 only (BM-3 closed at D = 30, see above) ·
+phase 1.2d stop-and-report per the hard rule: BM-2 outside 2.05 ± 6% at
+D = 30 → document the value, the D = 20 → 30 trend and the 1/D extrapolation,
+then stop — no window edits, no retuning, no closure.
 
-**Measured.**
+**History.** Discovered 2026-07-16 on re-running the benchmarks under the
+well-posed Zou–He + Lallemand–Luo system: both cylinder cases read high
+(BM-2 non-converged at 2.490 and drifting; BM-3 Cd 1.546 +15.4%, St 0.1743
++5.6%) against windows written for unbounded flow. The old BC drift had
+biased both *down* and parked them inside those windows — the 2026-07-14
+BM-3 PASS was two errors cancelling (shift on re-run: Cd +10.2%, St +8.7%).
+Phase 1.2c added free-slip side walls and ran the diagnostic sequence that
+decomposed the excess; phase 1.2d took both cylinders to the D = 30 free-slip
+official setup with the corrected gate.
 
-- **BM-2 (Re = 20, 720×400, τ = 0.71):** Cd does not meet the convergence
-  gate (ΔCd/Cd ≤ 10⁻⁵ per 1,000 steps) within the 80,000-step safety cap;
-  last Cd = 2.490, above the 1.93–2.17 window. Note the *behavior* changed
-  qualitatively vs the old BCs: then, Cd decayed secularly through the whole
-  literature range (2.32 → 1.49 over 150k steps, mass piling up); now it
-  sits high. Whether it is still slowly relaxing downward, oscillating below
-  the gate's resolution, or genuinely converged-but-high cannot be
-  distinguished from the test output — the cheap discriminator is a
-  diagnostic re-run logging Cd(t), ~2.2 min per 1,000 steps on this domain.
-- **BM-3 (Re = 100):** mean Cd = 1.546 (+15.4% vs unbounded 1.34; window
-  ±7%), St = 0.1743 (+5.6% vs 0.165; window ±5%, missed by 0.0013).
-  Cl amplitude 0.407 (informative; high side of 2D range, as before).
+**The excess decomposes into two measured biases.**
 
-**Quantified biases (diagnostics on the BM domain).**
+- **Wall boundary layers** — removed by free-slip side walls. Directly
+  measured (1.2c D-2): no-slip → free-slip shifts BM-3 Cd −4.7% and St −4.0%,
+  and turns BM-2 from 2.490-and-drifting (no-slip, 80k cap) into 2.214
+  converged-in-the-mean. The free-slip incident-velocity probe reads
+  u₀ − 2.4% (the no-slip wall-BL overshoot of +1.0–1.2% is gone).
+- **Staircase/resolution** — removed by the D = 20 → 30 refinement,
+  first-order in 1/D (refinement study above).
 
-- **Rasterized diameter:** the D = 20 disk rasterizes to 312 cells
-  (area-equivalent D_eff = 19.93) but its cross-flow solid extent is 20 rows
-  → hydrodynamic width ≈ 21 with half-way bounce-back. Cd normalizes by
-  D = 20 while the flow sees ~21: ≈ +5% on Cd.
-- **Incident velocity:** measured on the centerline 5–8 D upstream of the
-  cylinder (BM-2 setup, 8k steps): +1.0–1.2% over u₀ (inlet flux itself
-  +0.54%, wall boundary layers thin at these x). ≈ +2% on Cd, ≈ +1% on St.
-- **Confinement:** β = 5% with no-slip walls raises Cd a few % and St ~2–4%
-  relative to unbounded references (the windows are written against
-  unbounded values).
+For **BM-3** the two biases fully account for the excess: at D = 30 free-slip
+it is inside both windows (Cd 1.428, St 0.1691) and the 1/D extrapolation
+sits on the reference (Cd(D→∞) ≈ 1.336). **Finding closed for BM-3.**
 
-**Hypothesis.** The old drift biased both quantities *down* and happened to
-park them inside unbounded-flow windows — the 2026-07-14 BM-3 PASS was two
-errors cancelling (recorded shift: Cd +10.2%, St +8.7%). The identified
-biases above compose to roughly +8–11% on Cd and +3–5% on St, accounting for
-most but not all of the excess (residual ~3–6% on Cd, ~1–2% on St). Candidate
-explanations for the residual, in decreasing plausibility: (a) the acceptance
-windows simply need recalibrating against *confined* (β = 5%, no-slip)
-references and/or an effective-diameter-aware normalization — a spec
-revision; (b) the Zou–He pressure outlet is acoustically reflective and the
-anchored ρ = 1 plane 25 D downstream stiffens the wake dynamics relative to
-the convective outflow implied by unbounded references — testable by moving
-the outlet or comparing against a longer domain; (c) a genuine post-change
-force-path bias not caught by INV-1…6 — considered unlikely given BM-1's
-0.159% and the exact BC-1 moments, but not excluded. Per the discrepancy
-protocol, choosing among these (or revising the spec) is the maintainer's
-call.
+**What remains (BM-2).** After both biases are removed, BM-2 still reads 2.190
+at D = 30 (+6.8%), and refinement neither reaches the reference
+(1/D → 2.14, +4.5%) nor brings the measured value into window. The residual
+is the **outlet acoustic cavity mode**, confirmed by two independent
+signatures (see the acoustic-mode section): (i) refinement barely moves BM-2
+and does not extrapolate onto the reference — it is not resolution; (ii) the
+mode's amplitude grows with domain size (±0.42% → ±2.30% of Cd). This is the
+phase-1.2c residual suspect (b) — outlet reflectivity — now de-confounded
+from the wall-BL and resolution biases and promoted from hypothesis to the
+leading explanation. The remaining suspect (c), a post-change force-path
+bias, stays unlikely: BM-1's 0.159%, the exact BC-1 moments, and BM-3's clean
+pass at D = 30 all exercise the same force path.
 
-**Phase 1.2c diagnostics (2026-07-17, free-slip side walls).** Spec
-phase-1-2c added a free-slip (specular-reflection) side-wall mode to the
-solver — benchmark option only, default unchanged, mapping pinned by the new
-fast-tier BC-2 test — and prescribed the diagnostic sequence below. Original
-windows throughout; all other setup parameters identical to the spec'd
-benchmarks.
-
-- **D-1 — BM-2 re-run, free-slip, 200k-step cap.** The old non-convergence
-  is classified: **oscillating under the gate**, converged in the mean.
-  Cd(t) trace landmarks: 2.03 (1k) → 2.77 (2k, transient peak) → 1.76 (5k)
-  → 2.10 (10k) → 2.14 (20k) → 2.23 (40k), then a stationary band with no
-  secular drift — over the last 100k steps Cd = 2.2137 ± 0.0094 (band
-  2.186–2.243, dominant period ≈ 2.2k steps); ΔCd/Cd per 1,000 steps
-  fluctuates between 1e-4 and 3e-2 and never approaches the 1e-5 gate. The
-  incident-velocity probe (centerline, 5D upstream of the center) reads
-  0.06835 = u₀ − 2.4% — the no-slip wall-BL overshoot (+1.0–1.2%) is gone —
-  and oscillates ±0.3% phase-locked with Cd. Mean density stationary at
-  1.0000; |Cl| ~ 1e-16. The in-mean Cd = 2.214 sits +2.0% above the window
-  top (2.17), vs no-slip's 2.490-and-drifting at the 80k cap. Re = 20 is
-  far below shedding onset (Re ≈ 47) and the ≈2k-step period is the order
-  of the inlet–outlet acoustic round trip (2·Nx/c_s ≈ 2.5k steps): the
-  oscillation is consistent with an acoustic mode sustained between the two
-  reflective Zou–He planes — direct evidence for residual suspect (b),
-  outlet reflectivity, now de-confounded from the wall-BL bias.
-- **D-2 — BM-3 re-run, free-slip.** mean Cd = 1.4740 (cycle range
-  1.327–1.609) — outside the window (1.246–1.434), +10.0% vs 1.34;
-  **St = 0.1674 — inside the window** (0.157–0.173), +1.45% vs 0.165;
-  Cl amplitude 0.398. The no-slip → free-slip shift — the directly measured
-  wall-BL bias — is Cd −4.66% (1.546 → 1.4740) and St −3.97%
-  (0.1743 → 0.1674), matching the 2026-07-16 estimates.
-- **D-3 — BM-3 at D = 30 (resolution discriminator).** 1080×600, β = 5%
-  kept, free-slip, time windows scaled with D/u₀ (45k discarded, 31.5k
-  measured = 11 full periods): mean Cd = 1.4273 (cycle range 1.250–1.595),
-  St = 0.1692, Cl amplitude 0.379. Cd moves materially toward the reference
-  under refinement (−3.17% for 1/D: 1/20 → 1/30); fitting Cd = a + b/D to
-  the two points gives **Cd(D→∞) ≈ 1.334** — on the unbounded reference
-  (1.33–1.35). Two-point, first-order extrapolation — informative, not a
-  gate. St is roughly flat under refinement (0.1674 → 0.1692, +1.06%,
-  extrapolating to ≈ 0.173, the window top). One-off runtime ≈ 75 min CPU.
-
-**Where this leaves the finding.** The excess decomposes cleanly:
-wall-BL bias (measured: −4.7% Cd on removal) + staircase/resolution bias
-(measured: −3.2% Cd from D = 20 → 30, extrapolating onto the reference).
-BM-3 at D = 30 with free-slip walls is inside both original windows; BM-2's
-residual +2% is dominated by the acoustic/outlet-reflectivity mechanism the
-D-1 trace exposed, which needs its own spec'd discriminator (outlet at 40D
-or a non-reflecting outlet). Choosing between raising BM-3 resolution and
-deriving a documented D = 20 tolerance is the maintainer's call (1.2c
-decision-tree endpoint); adopting free-slip side walls for the benchmark
-suite is recommended by these results but deferred to the same decision.
+**Why it is a stop, not a fix.** Removing the mode requires a genuinely
+non-reflecting outlet or an extended (≈ 40D) outlet buffer — a
+`src/lbm/boundaryConditions.ts` change that needs its own spec (AGENTS.md
+rule 1). Per the phase 1.2d endpoint decision that work is on the
+**backlog**, revisited only if it ever gates a result. The maintainer's
+options, none of which the implementer may take unilaterally: (a) spec the
+non-reflecting/extended outlet and re-measure BM-2; (b) adopt a documented
+BM-2 tolerance against *confined, reflective-outlet* references rather than
+unbounded ones; (c) accept BM-2 as a documented known-limitation benchmark.
+Phase close-out (app smoke, AGENTS.md BC-row note, decision log) is deferred
+until this is resolved.
 
 ## Known limitations (independent of the findings above)
 
@@ -342,8 +408,16 @@ suite is recommended by these results but deferred to the same decision.
 - **Staircase boundaries.** Solids are rasterised on the lattice; curved
   surfaces carry O(1-cell) geometric error. Half-way bounce-back is
   second-order accurate on straight walls only.
-- **Blockage.** The cylinder cases run at β = 5% with bounce-back side walls;
-  unbounded-flow references carry a small systematic offset at this blockage.
+- **Blockage.** The cylinder benchmarks run at β = 5% with free-slip side
+  walls (the unconfined-comparison configuration); unbounded-flow references
+  carry a small systematic offset at this blockage. The app default is
+  no-slip walls.
+- **Reflective outlet.** The Zou–He pressure outlet is acoustically
+  reflective and, with the reflective velocity inlet, sustains a bounded
+  acoustic cavity mode in the cylinder domains (period ~ Nx/c_s). It is
+  mean-stationary and averaged out by the windowed-mean gate, but it is the
+  dominant residual keeping BM-2 above its window — see the open finding. A
+  non-reflecting / extended outlet is on the backlog.
 - **Reynolds ceiling.** The MRT scheme with the current grid presets is
   honest up to Re ≈ 21·D_cells; beyond that the safety indicator warns and
   results must not be trusted.
