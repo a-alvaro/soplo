@@ -13,14 +13,17 @@ coefficients come from `LBMSolver.computeForces()` — the exact code path the
 UI uses, no test-local normalization. Sign conventions:
 [`docs/specs/cl-sign-convention.md`](./docs/specs/cl-sign-convention.md).
 
-## Summary (2026-07-20, official setups: D = 30 free-slip cylinders)
+## Summary (2026-07-21, official setups: D = 30 free-slip cylinders; phase 1.2e D-4 addendum)
 
-Phase 1.2 closure. The cylinder benchmarks now run their **official** setup
+Phase 1.2 closure. The cylinder benchmarks run their **official** setup
 per the phase 1.2d endpoint decisions: D = 30 cells, blockage β = 5%
 (Ny = 600, Nx = 1080), **free-slip side walls** — the standard configuration
 for comparing a confined tunnel against unconfined references. BM-1 keeps
 no-slip walls (its physics requires them). The app default is unchanged
-(no-slip); free-slip is a benchmark option.
+(no-slip); free-slip is a benchmark option. The phase-1.2e discriminator
+(D-4) then doubled BM-2's outlet distance (25D → 50D) as a one-off diagnostic;
+it did **not** change the official setup (that adoption was gated on landing
+in window, which it did not) — see the D-4 subsection.
 
 | Case | Quantity | Measured | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
@@ -44,10 +47,17 @@ boundary layers (removed by free-slip walls) and staircase/resolution
 refinement study below. For **BM-3** both biases fully account for the excess:
 at D = 30 free-slip it lands inside both windows and the 1/D extrapolation
 sits on the reference (finding closed). For **BM-2** they do not: refinement
-barely moves it and the 1/D extrapolation misses the reference by +4.5%; the
-residual is the reflective outlet's acoustic cavity mode. Per the phase 1.2d
-hard rule, BM-2 outside 2.05 ± 6% at D = 30 is a **stop-and-report** — no
-window edits, no retuning — and phase close-out is deferred to the maintainer.
+barely moves it and the 1/D extrapolation misses the reference by +4.5%. The
+prior leading suspect for that residual — the reflective outlet's cavity mode
+biasing the mean — was **tested directly and refuted** by the phase-1.2e
+discriminator: doubling the outlet distance to 50D left the mean Cd unchanged
+(2.190 → 2.189) while the acoustic fingerprint doubled as predicted. The
+outlet mode is real but is a bounded *oscillation* the windowed mean already
+removes; it is not the mean bias. By elimination (resolution ruled out by
+refinement, outlet ruled out by D-4) the residual is **low-Re confinement** —
+see the D-4 subsection and the reframed open finding. Per the phase 1.2d hard
+rule, BM-2 outside 2.05 ± 6% at D = 30 is a **stop-and-report** — no window
+edits, no retuning — and phase close-out is deferred to the maintainer.
 
 ## BM-1 · Plane Poiseuille, Re_H = 20 — PASS
 
@@ -153,32 +163,102 @@ neither reaches the reference nor brings the measured D = 30 value into
 window. The maintainer's on-record prediction (Cd(30) ≈ 2.16–2.17,
 extrapolated ≈ 2.06) is **not borne out**: measured 2.190 and extrapolated
 2.14 are both high. This is the resolution discriminator doing its job — it
-rules resolution *out* as the dominant residual for BM-2 and points at the
-D-independent mechanism below.
+rules resolution *out* as the dominant residual for BM-2 and points at a
+mechanism that survives refinement at fixed blockage. Two such candidates
+remained — the reflective outlet and low-Re confinement — and the phase-1.2e
+D-4 discriminator (below) separated them: the outlet is mean-neutral, leaving
+low-Re confinement.
 
-## Outlet acoustic cavity mode (BM-2) — the dominant BM-2 residual
+## Outlet acoustic cavity mode (BM-2) — a bounded oscillation, not the mean bias
 
 The Zou–He pressure outlet anchors ρ = 1 on a plane and is acoustically
 reflective; so is the Zou–He velocity inlet. Between them the domain is a
 resonant cavity. At Re = 20 there is no vortex shedding (onset Re ≈ 47), so
 the Cd oscillation is purely this acoustic mode:
 
-| | D = 20 (Nx = 720) | D = 30 (Nx = 1080) |
-|---|---|---|
-| dominant period | ≈ 2200 steps | ≈ 1682 steps |
-| acoustic round trip 2·Nx/c_s | ≈ 2494 steps | ≈ 3741 steps |
-| half-amplitude | ±0.0094 | ±0.0504 |
-| as fraction of Cd | ±0.42% | ±2.30% |
+| | D = 20 (Nx = 720) | D = 30 (Nx = 1080) | D = 30, 50D (Nx = 1830) |
+|---|---|---|---|
+| dominant period | ≈ 2200 steps | ≈ 1682 steps | ≈ 1265 steps |
+| acoustic round trip 2·Nx/c_s | ≈ 2494 steps | ≈ 3741 steps | ≈ 6339 steps |
+| half-amplitude | ±0.0094 | ±0.0504 | ±0.0573 |
+| as fraction of Cd | ±0.42% | ±2.30% | ±2.62% |
 
-The period is of order the inlet–outlet acoustic transit (Nx/c_s), which
-identifies the source. The mode is **bounded and mean-stationary** — it does
-not drift, and the windowed mean over ≥ 20 periods averages it out — which is
-why the corrected gate (below) is a measurement fix, not a tolerance
-relaxation. But its amplitude **grows with domain size** (±0.42% → ±2.30% of
-Cd from D = 20 to D = 30). That growth is a second, independent line of
-evidence that the outlet mode — not resolution — is the dominant BM-2
-residual: a resolution bias would shrink under refinement; this one
-strengthens.
+The acoustic round trip 2·Nx/c_s is the fingerprint of the source: it scales
+with domain length, and the phase-1.2e discriminator (D-4) confirmed it
+directly — doubling the streamwise domain (Nx 1080 → 1830) doubled it
+(≈ 3741 → ≈ 6339 steps, matching the on-record prediction ~3.7k → ~6.3k).
+The mode is **bounded and mean-stationary** — it does not drift, and the
+windowed mean over ≥ 20 periods averages it out — which is why the corrected
+gate (below) is a measurement fix, not a tolerance relaxation.
+
+**What D-4 corrected.** A prior version of this section read the mode's
+growing amplitude (±0.42% → ±2.30% of Cd from D = 20 to D = 30) as evidence
+that the outlet was the *dominant residual of the mean*. That inference was
+wrong, and D-4 is the direct test that overturns it: the amplitude describes
+the *oscillation*, but the **mean** did not respond to moving the outlet
+plane out to 50D (2.190 → 2.189, unchanged within the oscillation band). A
+steady outlet-truncation bias of the mean would have relaxed as the plane
+receded; it did not. So the outlet mode is a bounded nuisance oscillation the
+windowed mean already removes — **not** the source of BM-2's mean excess.
+This is the same erratum-family lesson the phase keeps re-teaching: an
+indirect signature (amplitude growth) suggested a mechanism, and the direct
+discriminator refuted it.
+
+## D-4 · outlet-distance discriminator (phase 1.2e) — the BM-2 mean is domain-length-independent
+
+Phase 1.2d attributed BM-2's residual to the reflective outlet but could not
+separate the outlet's two candidate effects on the *mean*: an acoustic cavity
+oscillation (a nuisance that a windowed mean removes by itself) versus a
+steady truncation of the wake's pressure recovery (clamping p = 1 at 25D
+could force faster-than-physical recovery and bias mean Cd up). D-4 separates
+them the only clean way — by moving the plane. It re-ran the official BM-2
+setup **unchanged except one parameter: downstream distance 25D → 50D**
+(Nx 1080 → 1830 = 300 upstream + 30 + 1500 downstream; 1.1M cells; same D = 30,
+β = 5%, free-slip walls, Zou–He BCs, τ, 150k steps, and windowed-mean gate on
+the final 50k). BM-2 has no perturbation/RNG, so the run is deterministic and
+bit-reproducible: the run was relaunched once for scheduling reasons and both
+launches produced Cd = 2.2184 at step 10k to the digit, confirming the
+relaunch reproduced the identical trajectory.
+
+```
+================ D-4 · BM-2 outlet at 50D (Re = 20) ================
+setup: 1830×600, D = 30 (β = 5%), free-slip side walls, downstream 50D,
+       150000 steps, gate on final 50000 (two 25000 window means within
+       0.2%: 2.1894/2.1894 → converged), Cd = mean over that tail
+Cd (windowed mean over final 50k): 2.1894  | window 1.93–2.17  | rel.err vs 2.05 = +6.80%
+|Cl| max over tail: 1.18e-13
+Cd oscillation (cavity mode): ±0.0573, dominant period ≈ 1265 steps | 2·Nx/c_s ≈ 6339 steps
+L_r/D (informative): 0.991  | ≈ 0.92
+```
+
+**Result against the three on-record predictions (fingerprints):**
+
+| Prediction (registered in the 1.2e spec) | Measured 25D → 50D | Verdict |
+|---|---|---|
+| Cavity period 2·Nx/c_s doubles: ~3.7k → ~6.3k | 3741 → 6339 steps | ✅ borne out |
+| If outlet-clamp dominates the mean: Cd → 2.08–2.13 (in window) | 2.190 → **2.189** (unchanged) | ❌ **not** borne out |
+| Oscillation amplitude: same order or larger (informative) | ±0.0504 → ±0.0573 | ✅ larger |
+
+The mean shift is −0.0006 (−0.03%) — smaller than the 25D run's own
+two-window spread (2.1895/2.1903) and ~1% of the oscillation half-amplitude,
+i.e. statistically zero. This is the mechanical **"Cd unchanged"** branch of
+the 1.2e decision tree, not "improved": doubling the outlet distance does not
+move the mean. The clamp/pressure-recovery-truncation hypothesis is **dead
+for the mean**; the acoustic mode, whose fingerprint doubled exactly as
+predicted, is confirmed as a bounded oscillation only. With resolution ruled
+out by the 1/D refinement and the outlet now ruled out by D-4, the remaining
+mechanism for BM-2's +6.8% mean excess is **low-Re confinement** — the
+β = 5% lateral blockage acting through the slow (Stokes-like, ~1/r) far-field
+decay at Re = 20, the regime in which literature Cd(20) itself spans 2.0–2.1
+with domain size and blockage. This is by elimination plus the cited
+literature, not a direct blockage measurement (a β sweep would confirm it
+directly and is a maintainer option, below).
+
+Per the 1.2e hard rule this is a **stop-and-report**: no window edits, no
+retuning, no solver changes, and the official BM-2 setup stays at 25D
+(Nx = 1080) — the 50D domain reproduces the same mean at ~70% more cells
+(1.10M vs 0.65M), so there is no reason to adopt it. The full phase close-out remains deferred to
+the maintainer (it was gated on BM-2 landing in window, which it did not).
 
 ## Corrected BM-2 convergence gate (measurement-definition fix)
 
@@ -344,12 +424,17 @@ prediction (e.g. |ρ_mean − (1 + Δρ_analytic/2)| ≤ 2·10⁻³), or raise t
 absolute gate to ~2·10⁻² (still 10× below the 1.2 failure signature), or gate
 on the outlet-column density instead. Not for the implementer to pick.
 
-## Open finding: BM-2 residual is outlet reflectivity (stop-and-report)
+## Open finding: BM-2 mean residual is low-Re confinement (outlet ruled out; stop-and-report)
 
 **Status:** open · BM-2 only (BM-3 closed at D = 30, see above) ·
-phase 1.2d stop-and-report per the hard rule: BM-2 outside 2.05 ± 6% at
-D = 30 → document the value, the D = 20 → 30 trend and the 1/D extrapolation,
-then stop — no window edits, no retuning, no closure.
+phase 1.2e stop-and-report per the hard rule: BM-2 outside 2.05 ± 6% at
+D = 30 → document the value, the D = 20 → 30 trend, the 1/D extrapolation and
+the D-4 outlet-distance discriminator, then stop — no window edits, no
+retuning, no closure. **Update (phase 1.2e):** the leading suspect was
+reflective-outlet reflectivity biasing the *mean*; D-4 tested it directly
+(outlet 25D → 50D) and refuted it — the mean did not move. The residual is
+reattributed to low-Re confinement (see "What remains" and the D-4
+subsection).
 
 **History.** Discovered 2026-07-16 on re-running the benchmarks under the
 well-posed Zou–He + Lallemand–Luo system: both cylinder cases read high
@@ -375,30 +460,55 @@ For **BM-3** the two biases fully account for the excess: at D = 30 free-slip
 it is inside both windows (Cd 1.428, St 0.1691) and the 1/D extrapolation
 sits on the reference (Cd(D→∞) ≈ 1.336). **Finding closed for BM-3.**
 
-**What remains (BM-2).** After both biases are removed, BM-2 still reads 2.190
-at D = 30 (+6.8%), and refinement neither reaches the reference
-(1/D → 2.14, +4.5%) nor brings the measured value into window. The residual
-is the **outlet acoustic cavity mode**, confirmed by two independent
-signatures (see the acoustic-mode section): (i) refinement barely moves BM-2
-and does not extrapolate onto the reference — it is not resolution; (ii) the
-mode's amplitude grows with domain size (±0.42% → ±2.30% of Cd). This is the
-phase-1.2c residual suspect (b) — outlet reflectivity — now de-confounded
-from the wall-BL and resolution biases and promoted from hypothesis to the
-leading explanation. The remaining suspect (c), a post-change force-path
-bias, stays unlikely: BM-1's 0.159%, the exact BC-1 moments, and BM-3's clean
-pass at D = 30 all exercise the same force path.
+**What remains (BM-2).** After the wall-BL and resolution biases are removed,
+BM-2 still reads 2.190 at D = 30 (+6.8%), and refinement neither reaches the
+reference (1/D → 2.14, +4.5%) nor brings the measured value into window.
+Through phase 1.2d the leading suspect was outlet reflectivity biasing the
+mean; **phase 1.2e's D-4 discriminator refuted it** (see the D-4 subsection):
+doubling the outlet distance to 50D left the mean unchanged (2.190 → 2.189)
+while the acoustic fingerprint doubled as predicted. The outlet cavity mode
+is therefore a bounded *oscillation* only — averaged out by the windowed
+mean — and not the mean bias. The two indirect signatures that had promoted
+it (refinement barely moves BM-2; the mode's amplitude grows with domain
+size) survive but no longer support the mean claim: amplitude growth is a
+property of the oscillation, and D-4's direct null on the mean overrides the
+inference. With resolution ruled out by refinement and the outlet ruled out
+by D-4, the residual is reattributed to **low-Re confinement**: the β = 5%
+lateral blockage acting through the slow Stokes-like (~1/r) far-field decay at
+Re = 20 — precisely the regime in which the literature Cd(20) itself spans
+2.0–2.1 with domain size and blockage. This is by elimination plus cited
+literature; a direct β sweep (5% → 2.5%) would confirm it and is a maintainer
+option below. The force-path suspect (c) stays unlikely: BM-1's 0.159%, the
+exact BC-1 moments, and BM-3's clean pass at D = 30 all exercise the same
+force path.
 
-**Why it is a stop, not a fix.** Removing the mode requires a genuinely
-non-reflecting outlet or an extended (≈ 40D) outlet buffer — a
-`src/lbm/boundaryConditions.ts` change that needs its own spec (AGENTS.md
-rule 1). Per the phase 1.2d endpoint decision that work is on the
-**backlog**, revisited only if it ever gates a result. The maintainer's
-options, none of which the implementer may take unilaterally: (a) spec the
-non-reflecting/extended outlet and re-measure BM-2; (b) adopt a documented
-BM-2 tolerance against *confined, reflective-outlet* references rather than
-unbounded ones; (c) accept BM-2 as a documented known-limitation benchmark.
-Phase close-out (app smoke, AGENTS.md BC-row note, decision log) is deferred
-until this is resolved.
+**Why it is a stop, not a fix.** Confirming or removing the confinement bias
+means changing the physical setup (a lower-blockage / larger-Ny domain, a
+β sweep, or a confined-reference comparison) or accepting the offset — none
+of which the implementer may choose unilaterally, and none of which is a
+window edit or a retune. The outlet cavity mode remains on the **backlog** (a
+non-reflecting / convective outlet is the elegant fix — see below), now
+motivated by app-side vortex-exit cleanliness rather than by BM-2's mean,
+which D-4 showed it does not set. The maintainer's options: (a) run a
+blockage sweep to measure the low-Re confinement offset directly and adopt a
+confined-reference window or a documented tolerance; (b) adopt a documented
+BM-2 tolerance against *confined* references rather than unbounded ones;
+(c) accept BM-2 as a documented known-limitation benchmark. Phase close-out
+(app smoke, AGENTS.md BC-row note, decision log) is deferred until this is
+resolved.
+
+**Backlog — convective / non-reflecting outlet (CBC).** The Zou–He pressure
+plane is acoustically reflective; the resulting cavity mode is identified,
+bounded, and (per D-4) mean-neutral, so it does not gate BM-2's mean. It does,
+however, cost benchmark domain length (the plane must sit far enough that its
+oscillation is comfortably averaged) and shows up in the app as vortices
+reflecting at the outlet rather than convecting cleanly out. A convective
+boundary condition (∂ₜφ + U·∂ₙφ = 0 at the outlet) would let structures leave
+without reflection, shorten the cylinder-benchmark domains, and clean up
+vortex exit in the app. It is a `src/lbm/boundaryConditions.ts` change and
+needs its own spec (AGENTS.md rule 1); the measured cavity signatures
+(fingerprint 2·Nx/c_s doubling under D-4; ±2.3–2.6% of Cd amplitude) are the
+motivation on record.
 
 ## Known limitations (independent of the findings above)
 
@@ -410,14 +520,19 @@ until this is resolved.
   second-order accurate on straight walls only.
 - **Blockage.** The cylinder benchmarks run at β = 5% with free-slip side
   walls (the unconfined-comparison configuration); unbounded-flow references
-  carry a small systematic offset at this blockage. The app default is
-  no-slip walls.
+  carry a systematic offset at this blockage that is larger at low Re, where
+  the disturbance decays slowly (~1/r). After D-4 ruled out the outlet, this
+  low-Re confinement is the leading explanation for BM-2's residual mean
+  excess (+6.8%) — see the open finding. The app default is no-slip walls.
 - **Reflective outlet.** The Zou–He pressure outlet is acoustically
   reflective and, with the reflective velocity inlet, sustains a bounded
   acoustic cavity mode in the cylinder domains (period ~ Nx/c_s). It is
-  mean-stationary and averaged out by the windowed-mean gate, but it is the
-  dominant residual keeping BM-2 above its window — see the open finding. A
-  non-reflecting / extended outlet is on the backlog.
+  mean-stationary and averaged out by the windowed-mean gate; the phase-1.2e
+  D-4 discriminator confirmed it is **mean-neutral** (doubling the outlet
+  distance did not move BM-2's mean, though the acoustic fingerprint doubled).
+  It is a bounded oscillation, not a mean bias. A non-reflecting / convective
+  outlet is on the backlog (now motivated by app vortex-exit and benchmark
+  domain length, not by BM-2's mean).
 - **Reynolds ceiling.** The MRT scheme with the current grid presets is
   honest up to Re ≈ 21·D_cells; beyond that the safety indicator warns and
   results must not be trusted.
