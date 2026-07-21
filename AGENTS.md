@@ -31,7 +31,8 @@
 | Force timing | Momentum exchange accumulates **post-collision, pre-stream** | Required by the Ladd MEM formula; moving the call produces wrong forces |
 | Solid encoding | `solid=1` domain walls (excluded from forces), `solid=2` aerodynamic bodies (included) | Force measurement correctness |
 | Axis / force signs | Lattice +x = downstream, +y = physical up (renderer flips y at draw time); `Cd = +Fx`, `Cl = +Fy`; positive AoA = nose up via `−aoa` rotation | Verified empirically (NACA ±10° antisymmetry); see `docs/specs/cl-sign-convention.md` |
-| Boundary layout | Inlet = left (Zou–He velocity, u = (u₀,0), density free, skips solid cells), outlet = right (Zou–He pressure, ρ = 1 reference), walls via bounce-back | Well-posed pair (spec 1.2b): fixing pressure at both ends chokes the flow. Validation logic in `App.tsx` enforces left/right for now |
+| Boundary layout | Inlet = left (Zou–He velocity, u = (u₀,0), density free, skips solid cells), outlet = right (Zou–He pressure, ρ = 1 reference), walls via bounce-back. Side walls **default no-slip**; a **free-slip (specular) side-wall mode** exists as a benchmark option (`sideWalls: 'free-slip'`) for unconfined-comparison cylinder cases | Well-posed pair (spec 1.2b): fixing pressure at both ends chokes the flow. Free-slip walls are the standard unconfined-comparison setup for the cylinder benchmarks (spec 1.2c/1.2d); the app default stays no-slip. Validation logic in `App.tsx` enforces left/right for now |
+| Inlet velocity profile | **Uniform (plug) only.** Parabolic (Poiseuille) inlet is a v2 item | The confined-cylinder literature (Schäfer–Turek) uses a parabolic inlet; the confinement bias depends on the profile, so a literature-tight *confined* BM-2 gate is deferred to v2 with the parabolic inlet BC (coupled item; see `VALIDATION.md` and `PROJECT_CONTEXT.md` backlog) |
 | f-array layout | `f[i * Nx*Ny + x*Ny + y]` | All hot loops assume it |
 | Solver storage precision | `Float64Array` for all population/field arrays | INV-1/INV-2 tolerances (1e-12/1e-10) assume double precision; changing storage precision invalidates them and requires a spec |
 
@@ -59,6 +60,20 @@ The solver must remain runnable headless (Node/Vitest) — never import browser 
   suite. Benchmarks are slow; there is no situation where skipping them is acceptable
   for solver changes.
 - New physics-adjacent features require at least one invariant test.
+
+**Official benchmark setups (reference — the validated configs in `VALIDATION.md`):**
+
+| Case | Domain | Body | Walls | BCs | Gate |
+|---|---|---|---|---|---|
+| BM-1 Poiseuille, Re_H = 20 | 300×52 channel (H = 50) | — | no-slip half-way | Zou–He vel. in / press. out | ✅ literature-gated |
+| BM-2 Cylinder, Re = 20 | 1080×600 (10D up / 25D down) | D = 30, β = 5% | **free-slip** side | Zou–He vel. in / press. out | 📄 reported (known-limitation, sanity 1.8–2.4) |
+| BM-3 Cylinder, Re = 100 | 1080×600 (10D up / 25D down) | D = 30, β = 5% | **free-slip** side | Zou–He vel. in / press. out | ✅ literature-gated (Cd, St) |
+
+BM-2 is a **reporting benchmark**, not literature-gated: its +6.8% excess over the
+unconfined reference is a documented known-limitation (low-Re confinement, β = 5%,
+uniform inlet — outlet ruled out by the 1.2e D-4 test, resolution by the 1/D
+refinement). See `VALIDATION.md`. Do not "fix" it by editing gates or setups (that is
+a physics/spec change, rule 1); a tight confined gate needs a parabolic inlet (v2).
 
 ## Workflow conventions
 
