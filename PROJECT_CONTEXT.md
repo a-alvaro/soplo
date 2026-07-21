@@ -125,6 +125,15 @@ Experiments defined as JSON presets + guided steps + observation prompts. Launch
 Shareable experiment/config URLs if cheap.
 
 ### Backlog — small, unscheduled (candidates to slot into any phase if cheap)
+- **Convective / non-reflecting outlet (CBC).** *(carried from phase 1.2e.)*
+  The Zou–He pressure outlet is acoustically reflective; with the reflective
+  velocity inlet it sustains a bounded, **mean-neutral** acoustic cavity mode in
+  the cylinder domains (phase 1.2e D-4: doubling the outlet distance doubled the
+  mode's period but left BM-2's mean unchanged, 2.190 → 2.189). A convective BC
+  (∂ₜφ + U·∂ₙφ = 0 at the outlet) would let vortices leave without reflection —
+  cleaning up app-side vortex exit and shortening the cylinder-benchmark domains.
+  A `src/lbm/boundaryConditions.ts` change; needs its own spec (AGENTS.md rule 1).
+  See `VALIDATION.md` (outlet cavity mode / closed BM-2 finding).
 - **Pressure field view.** We render |u|, ux, uy and vorticity; pressure is missing
   and is nearly free in LBM (`p = ρ·c_s²`, with `c_s² = 1/3` in lattice units —
   the density field already exists). Didactically strong: suction over a wing's
@@ -137,6 +146,19 @@ Shareable experiment/config URLs if cheap.
   definition. Cheap extension of `src/geometry/naca.ts`. *(Inspired by Kutta, see §7.)*
 
 ### v2 horizon (not in scope for v1)
+- **Parabolic inlet BC → confined-cylinder benchmark → tight BM-2 closure.**
+  A *coupled* item. SOPLO's inlet is uniform (plug flow); the canonical
+  *confined*-cylinder references (Chakraborty et al. 2004; Schäfer–Turek 1996)
+  use a **parabolic (Poiseuille) inlet**, and the confinement correction to Cd
+  depends on the inlet profile — so a confined comparison against SOPLO's
+  uniform inlet would confound setup with solver. Adding a parabolic inlet BC
+  (a `src/lbm/boundaryConditions.ts` change, needs its own spec) unlocks the
+  Schäfer–Turek confined benchmark and a literature-tight **confined** gate for
+  BM-2 — closing the known-limitation documented in `VALIDATION.md` (BM-2 is a
+  *reporting* benchmark in v1: Cd = 2.190, +6.8% vs the unconfined 2.05
+  reference, from low-Re confinement at β = 5%). A blockage sweep (β 5% → 2.5%)
+  is the direct confirmation of the confinement offset and belongs with this
+  work.
 - **WebGPU compute solver** — raises the Re ceiling and grid sizes substantially. Flagship of v2.
 - **AI interpreter (BYO API key):** a text field where the user pastes their own Anthropic/OpenAI key; the model receives the sim config, regime, force history and Strouhal, and narrates/answers questions in context. Sits naturally *on top of* Phase 2's structured interpretation data. Privacy stance: key stays client-side, calls go direct from the browser.
 - Side-by-side comparison mode (two configs, one screen — very didactic).
