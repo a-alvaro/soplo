@@ -15,7 +15,7 @@
 // modes (pxx, pxy) use s = 1/tau, the only one tied to viscosity. Result:
 // stable up to ~3-4× higher Re than BGK at the same grid.
 
-import { Q, ex, ey, w, opp } from './constants';
+import { Q, ex, ey, w, opp, mirY } from './constants';
 import { applyInlet, applyOutlet } from './boundaryConditions';
 import { rasterizePolygon } from '../geometry/rasterize';
 
@@ -50,11 +50,23 @@ const MI_RAW: ReadonlyArray<number> = [
   4, 2, 1, 6, 3, -6, -3, 0, -9,
 ];
 
+/** Treatment of the straight top/bottom domain walls (solid=1 rows). */
+export type SideWallMode = 'no-slip' | 'free-slip';
+
 export interface LBMOptions {
   Nx: number;
   Ny: number;
   tau: number;
   u0: number;
+  /**
+   * Side-wall mode (spec phase-1-2c). 'no-slip' (default) is half-way
+   * bounce-back; 'free-slip' is half-way specular reflection — the normal
+   * (y) velocity component flips, the tangential (x) component is
+   * preserved, so no wall boundary layer forms. Free-slip applies to the
+   * horizontal domain-wall rows only; obstacle surfaces (solid=2) are
+   * always bounce-back regardless of this option.
+   */
+  sideWalls?: SideWallMode;
 }
 
 export class LBMSolver {
@@ -62,6 +74,7 @@ export class LBMSolver {
   readonly Ny: number;
   readonly tau: number;
   readonly u0: number;
+  readonly sideWalls: SideWallMode;
 
   f: Float64Array;
   fNew: Float64Array;
@@ -93,6 +106,7 @@ export class LBMSolver {
     this.Ny = opts.Ny;
     this.tau = opts.tau;
     this.u0 = opts.u0;
+    this.sideWalls = opts.sideWalls ?? 'no-slip';
 
     const N = this.Nx * this.Ny;
     this.f = new Float64Array(Q * N);
@@ -112,27 +126,28 @@ export class LBMSolver {
 
   /**
    * (Re)compute the relaxation rates. Conserved moments use s=1 (value
-   * irrelevant because m == meq for them; 1 is convention). Non-physical
-   * ghost moments are damped aggressively (s≈1.7–1.8) so numerical noise
-   * decays before it can pollute the physical fields. Stress modes use
+   * irrelevant because m == meq for them; 1 is convention). Ghost moments
+   * use the Lallemand–Luo (2000) reference values. Stress modes use
    * s=1/tau — they're the only ones tied to viscosity.
    *
-   * Empirical: ghost rates of 1.4 / 1.2 (Lallemand–Luo defaults) are fine
-   * at Re ≲ 1500 on a 40-cell cylinder, but at higher Re (τ → 0.5) the
-   * ghosts amplify slowly and crash the solver after a few thousand steps.
-   * Tightening to 1.8 / 1.7 buys ≈3× more stable Re without measurable
-   * impact on the resolved physics.
+   * The ghost rates and the boundary scheme form a COUPLED SYSTEM (spec
+   * phase-1-2b). The previous aggressive rates (1.8 / 1.7) were stable only
+   * because the legacy equilibrium inlet wiped non-equilibrium content at
+   * the boundary every step; under the wet-node Zou–He pair the boundary
+   * reconstruction→collision loop is linearly unstable for s_e ≳ 1.6 at
+   * every τ (NaN within ~5k steps even in creeping flow). Do not change
+   * either side without revalidating the pair (INV-2/4/6 + benchmarks).
    */
   private updateRelaxation(): void {
     const inv = 1 / this.tau;
     const s = this.s;
     s[0] = 1.0; // rho   (conserved)
-    s[1] = 1.8; // e     (ghost — energy mode)
-    s[2] = 1.8; // eps   (ghost)
+    s[1] = 1.4; // e     (ghost — energy mode)
+    s[2] = 1.4; // eps   (ghost)
     s[3] = 1.0; // jx    (conserved)
-    s[4] = 1.7; // qx    (ghost — energy flux)
+    s[4] = 1.2; // qx    (ghost — energy flux)
     s[5] = 1.0; // jy    (conserved)
-    s[6] = 1.7; // qy    (ghost)
+    s[6] = 1.2; // qy    (ghost)
     s[7] = inv; // pxx   (physical — controls viscosity)
     s[8] = inv; // pxy   (physical)
   }
@@ -395,10 +410,20 @@ export class LBMSolver {
    *
    * This is the standard half-way bounce-back used to enforce no-slip on
    * arbitrary solids.
+   *
+   * With sideWalls = 'free-slip', hits on the horizontal domain-wall rows
+   * (solid=1 at y = 0 / Ny−1) use half-way specular reflection instead: the
+   * population that left the same-row neighbour (x−ex[i], y) in the
+   * y-mirrored direction bounces off the wall with its tangential (x)
+   * component preserved and arrives here — fNew_i(x,y) = f_mirY(i)(x−ex[i], y).
+   * Obstacles (solid=2) and non-wall solid=1 cells stay bounce-back always,
+   * as does a wall hit whose reflection source node is itself solid (e.g. an
+   * obstacle touching the wall) — there is no fluid population to reflect.
    */
   private stream(): void {
     const { Nx, Ny, f, fNew, solid } = this;
     const NxNy = Nx * Ny;
+    const freeSlip = this.sideWalls === 'free-slip';
 
     for (let x = 0; x < Nx; x++) {
       for (let y = 0; y < Ny; y++) {
@@ -411,8 +436,20 @@ export class LBMSolver {
           if (xs >= 0 && xs < Nx && ys >= 0 && ys < Ny) {
             const ks = xs * Ny + ys;
             if (solid[ks] !== 0) {
-              // Bounce-back: take post-collision f_opp from this very node.
-              fNew[i * NxNy + k] = f[opp[i] * NxNy + k];
+              const kr = xs * Ny + y; // reflection source: same row as (x,y)
+              if (
+                freeSlip &&
+                solid[ks] === 1 &&
+                (ys === 0 || ys === Ny - 1) &&
+                ey[i] !== 0 &&
+                solid[kr] === 0
+              ) {
+                // Specular reflection off a horizontal domain wall.
+                fNew[i * NxNy + k] = f[mirY[i] * NxNy + kr];
+              } else {
+                // Bounce-back: take post-collision f_opp from this very node.
+                fNew[i * NxNy + k] = f[opp[i] * NxNy + k];
+              }
             } else {
               fNew[i * NxNy + k] = f[i * NxNy + ks];
             }
@@ -432,15 +469,15 @@ export class LBMSolver {
   }
 
   /**
-   * Domain boundary conditions.
-   *  - Inlet (x=0): equilibrium populations with rho=1, u=(u0,0).
-   *  - Outlet (x=Nx-1): zero-gradient copy from x=Nx-2.
+   * Domain boundary conditions (Zou–He pair, see boundaryConditions.ts).
+   *  - Inlet (x=0): velocity BC, u=(u0,0) prescribed, density computed.
+   *  - Outlet (x=Nx-1): pressure BC, rho=1 prescribed, velocity computed.
    *  - Top/bottom walls: handled by marking those rows as solid; bounce-back
    *    in stream() takes care of no-slip.
    */
   private applyBoundaries(): void {
     applyInlet(this.f, this.Nx, this.Ny, this.u0, this.solid);
-    applyOutlet(this.f, this.Nx, this.Ny);
+    applyOutlet(this.f, this.Nx, this.Ny, this.solid);
   }
 
   /**

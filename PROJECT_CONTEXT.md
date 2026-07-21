@@ -125,6 +125,15 @@ Experiments defined as JSON presets + guided steps + observation prompts. Launch
 Shareable experiment/config URLs if cheap.
 
 ### Backlog — small, unscheduled (candidates to slot into any phase if cheap)
+- **Convective / non-reflecting outlet (CBC).** *(carried from phase 1.2e.)*
+  The Zou–He pressure outlet is acoustically reflective; with the reflective
+  velocity inlet it sustains a bounded, **mean-neutral** acoustic cavity mode in
+  the cylinder domains (phase 1.2e D-4: doubling the outlet distance doubled the
+  mode's period but left BM-2's mean unchanged, 2.190 → 2.189). A convective BC
+  (∂ₜφ + U·∂ₙφ = 0 at the outlet) would let vortices leave without reflection —
+  cleaning up app-side vortex exit and shortening the cylinder-benchmark domains.
+  A `src/lbm/boundaryConditions.ts` change; needs its own spec (AGENTS.md rule 1).
+  See `VALIDATION.md` (outlet cavity mode / closed BM-2 finding).
 - **Pressure field view.** We render |u|, ux, uy and vorticity; pressure is missing
   and is nearly free in LBM (`p = ρ·c_s²`, with `c_s² = 1/3` in lattice units —
   the density field already exists). Didactically strong: suction over a wing's
@@ -137,6 +146,19 @@ Shareable experiment/config URLs if cheap.
   definition. Cheap extension of `src/geometry/naca.ts`. *(Inspired by Kutta, see §7.)*
 
 ### v2 horizon (not in scope for v1)
+- **Parabolic inlet BC → confined-cylinder benchmark → tight BM-2 closure.**
+  A *coupled* item. SOPLO's inlet is uniform (plug flow); the canonical
+  *confined*-cylinder references (Chakraborty et al. 2004; Schäfer–Turek 1996)
+  use a **parabolic (Poiseuille) inlet**, and the confinement correction to Cd
+  depends on the inlet profile — so a confined comparison against SOPLO's
+  uniform inlet would confound setup with solver. Adding a parabolic inlet BC
+  (a `src/lbm/boundaryConditions.ts` change, needs its own spec) unlocks the
+  Schäfer–Turek confined benchmark and a literature-tight **confined** gate for
+  BM-2 — closing the known-limitation documented in `VALIDATION.md` (BM-2 is a
+  *reporting* benchmark in v1: Cd = 2.190, +6.8% vs the unconfined 2.05
+  reference, from low-Re confinement at β = 5%). A blockage sweep (β 5% → 2.5%)
+  is the direct confirmation of the confinement offset and belongs with this
+  work.
 - **WebGPU compute solver** — raises the Re ceiling and grid sizes substantially. Flagship of v2.
 - **AI interpreter (BYO API key):** a text field where the user pastes their own Anthropic/OpenAI key; the model receives the sim config, regime, force history and Strouhal, and narrates/answers questions in context. Sits naturally *on top of* Phase 2's structured interpretation data. Privacy stance: key stays client-side, calls go direct from the browser.
 - Side-by-side comparison mode (two configs, one screen — very didactic).
@@ -157,6 +179,15 @@ Shareable experiment/config URLs if cheap.
 | 2026-05 | Momentum-exchange (Ladd) for forces, not pressure integral | Standard, accurate on staircase boundaries, and captures both pressure and viscous contributions |
 | 2026-07 | **Kutta** adopted as conceptual reference only — no code reuse | Different language/stack; SOPLO's value is in the ground Kutta explicitly cedes (see §7) |
 | 2026-07 | Solver storage migrated Float32Array → Float64Array | Invariant tests INV-1/2 exposed f32 rounding floor (~1e-7); f64 passes with 70–2800× margin, is +12% faster in JS (arithmetic is always double; f32 pays conversion per access), at 2× memory (negligible on desktop). The f64 CPU solver becomes the reference for validating the future f32 WebGPU solver in v2 |
+| 2026-07-15 | **Zou–He BC pair** — velocity inlet (free density) + pressure outlet (ρ = 1); spec 1.2b | The legacy equilibrium inlet pinned ρ = 1 and over-constrained the flow (BM-1 choked and never converged, BM-2/BM-3 drifted). The well-posed pair unblocked BM-1 (converges to L2 = 0.159%) |
+| 2026-07-15 | **Ghost-rate retune to Lallemand–Luo** (s_e = s_ε = 1.4, s_q = 1.2); spec 1.2b rev 2 | The old aggressive ghosts (1.8/1.7) were stable only under the legacy inlet; with wet-node Zou–He BCs they are linearly unstable at every τ. BC scheme and ghost rates are a **coupled system** — retuned as one change |
+| 2026-07-16 | **INV-6 mean-density gate referenced to the analytic Poiseuille offset**; spec 1.2b rev 3 | A driven channel holds a pressure ramp, so the domain-mean offset is ≈ Δρ/2 = 36·ν·ū·L/(2H²) — which the original flat 5e-3 gate could not pass on the spec's own grid. Gate the mean against the physics the test imposes |
+| 2026-07-17 | **Free-slip side walls = official cylinder-benchmark setup** (BM-2/BM-3); spec 1.2c/1.2d | Standard unconfined-comparison practice: removes the no-slip wall-BL bias (measured −4.7% on BM-3 Cd). BM-1 keeps no-slip; app default stays no-slip |
+| 2026-07-17 | **D = 30 official cylinder setup** (β = 5%) with the 1/D refinement rationale; spec 1.2d | The staircase (curved bounce-back) bias is first-order in 1/D; the D = 20 → 30 fit extrapolates BM-3 Cd to 1.336, on the unconfined reference. Headline validation result |
+| 2026-07-17 | **Corrected BM-2 convergence gate** — two 25k-window means agree ≤ 0.2%, reported Cd = final-50k mean; spec 1.2d | The old pointwise gate (\|ΔCd\| ≤ 1e-5 / 1000 steps) is unsatisfiable under the acoustic cavity mode. A measurement-definition fix, not a tolerance relaxation; the acceptance window (2.05 ± 6%) is unchanged |
+| 2026-07-19 | **Outlet reflectivity ruled out for BM-2's mean** (D-4 discriminator); spec 1.2e | Doubling the outlet distance (25D → 50D) left mean Cd unchanged (2.190 → 2.189) while the acoustic fingerprint doubled as predicted. The outlet cavity mode is a bounded oscillation the windowed mean removes — not the mean bias; residual reattributed to low-Re confinement |
+| 2026-07-21 | **BM-2 closed as a documented known-limitation** — reporting benchmark, not gated; spec 1.2f | +6.8% vs the unconfined 2.05 reference is low-Re confinement (β = 5%, uniform inlet); resolution and outlet both ruled out. A tight *confined* gate needs a parabolic inlet (v2). BM-2 asserts only a loose sanity bound (1.8–2.4); BM-1/BM-3 stay literature-gated |
+| 2026-07 (1.2 lesson) | **Numeric gates and claims must carry their derivation** | Four phase-1.2 spec errata shared one root: a threshold or claim stated without deriving it (INV-6 gate; the unsatisfiable BM-2 convergence gate; the outlet-clamp mean claim overturned by D-4; the outlet corner-term sign erratum). Every gate/claim now records *why* its number is what it is |
 
 ## 7. Reference projects
 

@@ -8,9 +8,7 @@
 > The wind tunnel you wish you had before (and during) your first fluid
 > mechanics course.
 
-<!-- TODO: add a GIF here — cylinder at Re ≈ 100 shedding a von Kármán street,
-     with the results panel open. -->
-![SOPLO demo placeholder](docs/demo.gif)
+![SOPLO cylinder wake at Re ≈ 100](docs/demo.gif)
 
 ## What it does
 

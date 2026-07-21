@@ -15,6 +15,10 @@ export const ey = new Int8Array([0, 0, 1, 0, -1, 1, 1, -1, -1]);
 // Opposite direction index for bounce-back: opp[i] returns the direction -e[i].
 export const opp = new Uint8Array([0, 3, 4, 1, 2, 7, 8, 5, 6]);
 
+// y-mirrored direction index for specular (free-slip) reflection at
+// horizontal walls: mirY[i] returns the direction (ex[i], -ey[i]).
+export const mirY = new Uint8Array([0, 1, 4, 3, 2, 8, 7, 6, 5]);
+
 export const w = new Float64Array([
   4 / 9,
   1 / 9,

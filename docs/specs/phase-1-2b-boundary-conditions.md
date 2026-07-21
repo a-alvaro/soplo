@@ -1,6 +1,10 @@
 # Phase 1.2b Spec — Well-posed inlet/outlet boundary conditions
 
-> Status: **approved draft** · Owner: Alex · Executed by: coding agent, single session.
+> Status: **approved rev 3** · Owner: Alex · Executed by: coding agent.
+> Rev 2 added: outlet formula erratum fix, authorization of the MRT ghost-rate
+> change (coupled-system finding), Re-ceiling smoke check.
+> Rev 3 adds: INV-6 mean-offset gate corrected to a physics-referenced
+> threshold (second spec erratum, caught by the discrepancy protocol).
 > Prereq: Phase 1.2 merged (VALIDATION.md documents the open BC finding).
 > This spec **authorizes a change to `src/lbm/boundaryConditions.ts`** under rule 1
 > of `AGENTS.md`, with the justification, scope and revalidation defined below.
@@ -20,6 +24,33 @@ exponentially (BM-1: velocity dies, ρ saturates ≈ 1.2247; BM-2: Cd drifts as 
 effective velocity decays; BM-3 passed only because its measurement window is
 short relative to the drift timescale at low ν). The defect also affects the app
 itself on long-running simulations.
+
+## Rev 2 — MRT ghost rates (authorized change)
+
+Session findings (bisection on the branch): Zou–He is a *wet-node* scheme — it
+reconstructs boundary populations every step, injecting uncontrolled
+non-equilibrium content into the ghost moments. With the tuned over-relaxation
+s_e = s_ε = 1.8 (collision multiplier −0.8), the boundary
+reconstruction→collision loop is linearly unstable (NaN in ≤ 5k steps even in
+creeping flow; threshold located between s_e = 1.6 and 1.8). The legacy
+equilibrium inlet masked this by wiping non-equilibrium content at the boundary
+each step — i.e., **the 1.8/1.7 ghost rates were never an invariant of the
+solver alone, but of the solver+BC pair.**
+
+Therefore this spec now ALSO authorizes, as part of the same system change:
+
+- **MRT ghost relaxation rates: s_e = s_ε = 1.4, s_qx = s_qy = 1.2**
+  (the Lallemand–Luo 2000 reference values). Evidence on the branch: stable in
+  all bisection cases, INV-2 at 2.2e-14, INV-4 survives τ = 0.51, and the
+  driven channel converges to a stationary state with the expected pressure
+  jump (ρ_mean ≈ 1.021, no secular drift).
+- Corresponding updates to the invariants table in `AGENTS.md`: new rate values,
+  plus an explicit note that **boundary scheme and ghost rates form a coupled
+  system** — neither may be changed without revalidating the pair.
+- Backlog entry in `PROJECT_CONTEXT.md`: *regularized boundary conditions*
+  (Latt et al., PRE 77, 056703, 2008), which filter ghost content by
+  construction and would allow re-exploring higher ghost rates — the
+  principled v2 alternative if more stability margin is ever needed.
 
 ## Fix
 
@@ -41,8 +72,13 @@ Adopt the textbook well-posed pair for incompressible flow (Zou & He 1997):
    u_out = −1 + [f_C + f_N + f_S + 2(f_E + f_NE + f_SE)] / ρ_out,
    and the three unknown (west-pointing) populations reconstructed:
    - f_W  = f_E − (2/3)·ρ_out·u_out
-   - f_NW = f_SE + ½(f_N − f_S) − (1/6)·ρ_out·u_out
-   - f_SW = f_NE − ½(f_N − f_S) − (1/6)·ρ_out·u_out
+   - f_NW = f_SE − ½(f_N − f_S) − (1/6)·ρ_out·u_out
+   - f_SW = f_NE + ½(f_N − f_S) − (1/6)·ρ_out·u_out
+
+   *(Rev 2 erratum: the first version of this spec had the transverse
+   ½(f_N − f_S) signs of f_NW/f_SW swapped, violating ρ·u_y = 0. Caught by
+   BC-1 exactly as designed. The formulas above are the corrected ones,
+   matching the implementation on the branch.)*
 
 **Direction-index mapping is the implementer's responsibility and the #1 bug
 risk.** The formulas above are written in compass labels; map them onto the
@@ -73,9 +109,23 @@ Non-reflecting/characteristic outlets, sponge zones, parabolic inlet profiles
    This test pins the direction mapping.
 2. **New invariant INV-6 (fast tier): mass stationarity in a driven channel.**
    Poiseuille-like channel (small grid, e.g. 120×50, Re_H = 20): run 50,000
-   steps; over the last 40,000, the domain-mean density must show no secular
-   trend: |linear-fit slope| ≤ 1e-9 per step and |ρ_mean − 1| ≤ 5e-3.
-   This is the regression guard for the exact failure mode found in 1.2.
+   steps; over the last 40,000, two gates:
+   - **Secular trend (the regression guard):** |linear-fit slope of ρ_mean|
+     ≤ 1e-9 per step.
+   - **Mean offset (physics-referenced, rev 3):** a driven channel with the
+     outlet anchored at ρ = 1 *must* sit above 1 by half the analytic pressure
+     ramp, Δρ = 36·ν·ū·L/H² (lattice units, p = ρ/3, developed Poiseuille).
+     Gate: |ρ_mean − (1 + Δρ/2)| ≤ 0.5·(Δρ/2), with Δρ computed inside the
+     test from the case's ν, ū, L, H. The 50% margin absorbs entrance-region
+     overpressure; the 1.2 failure mode (drift to ρ ≈ 1.22, ~20× the predicted
+     offset) still fails by an order of magnitude.
+
+   *(Rev 3 erratum: the original absolute gate |ρ_mean − 1| ≤ 5e-3 was chosen
+   without computing the offset the test's own physics imposes (≈ 1.1e-2 on
+   the spec's grid) — no correct implementation could pass it. Same failure
+   pattern as the rev 2 erratum: numeric thresholds must be derived, not
+   guessed. Session evidence: ramp measured linear, slope within 4% of
+   analytic, stationary to 4e-6 over the window.)*
 3. **Full invariant suite** INV-1…INV-5 unchanged and green (tolerances as spec'd).
 4. **BM-1 and BM-2 re-run**: must now converge and pass their original
    acceptance windows (spec §1.2, unchanged).
@@ -87,6 +137,13 @@ Non-reflecting/characteristic outlets, sponge zones, parabolic inlet profiles
 7. **App smoke check**: run the UI briefly (dev server) with a cylinder config
    and confirm qualitatively normal behavior (no visual artifacts at inlet/outlet,
    forces finite). The perturbation/vortex behavior at Re = 100 must still develop.
+8. **Re-ceiling smoke (rev 2, informative not gating):** small cylinder case
+   (D = 10–12 cells) run at Re just below its nominal ceiling
+   (Re ≈ 21·D_cells): must stay finite for ≥ 20k steps under the new BC+rates
+   system. Report the outcome in VALIDATION.md. This checks that the product
+   rule Re_safe ≈ 21·D — which depends only on τ = 0.51 stability — survives
+   the system change. A failure here is a finding for the maintainer, not a
+   license to retune.
 
 ## Stability caveat (report, don't improvise)
 
@@ -100,4 +157,11 @@ ad-hoc damping.
 - BC pair replaced: equilibrium inlet (fixed ρ) + zero-gradient outlet →
   Zou–He velocity inlet (free ρ) + Zou–He pressure outlet (ρ = 1), after
   benchmarks BM-1/BM-2 exposed secular pressurization and flow decay.
+- MRT ghost rates retuned 1.8/1.7 → 1.4/1.2 (Lallemand–Luo reference values):
+  bisection showed the legacy equilibrium inlet was silently filtering ghost
+  modes at the boundary; the aggressive rates were a property of the old
+  solver+BC pair, unstable under wet-node (Zou–He) boundaries. Boundary scheme
+  and ghost rates are now documented as a coupled system.
 - INV-6 (mass stationarity) added as permanent regression guard.
+- Backlog: regularized boundary conditions (Latt 2008) as the principled path
+  to higher ghost rates if more Re margin is ever needed.
