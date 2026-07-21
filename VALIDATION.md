@@ -13,7 +13,7 @@ coefficients come from `LBMSolver.computeForces()` — the exact code path the
 UI uses, no test-local normalization. Sign conventions:
 [`docs/specs/cl-sign-convention.md`](./docs/specs/cl-sign-convention.md).
 
-## Summary (2026-07-21, official setups: D = 30 free-slip cylinders; phase 1.2e D-4 addendum)
+## Summary (2026-07-21, Phase 1.2 closure: BM-1 ✅, BM-3 ✅, BM-2 reported / known-limitation)
 
 Phase 1.2 closure. The cylinder benchmarks run their **official** setup
 per the phase 1.2d endpoint decisions: D = 30 cells, blockage β = 5%
@@ -28,19 +28,21 @@ in window, which it did not) — see the D-4 subsection.
 | Case | Quantity | Measured | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
 | BM-1 Poiseuille, Re_H = 20 | L2(u_x) vs analytic parabola | **0.159%**, converged 36.5k steps | exact solution | ≤ 1% | ✅ |
-| BM-2 Cylinder, Re = 20 (D = 30) | Cd (windowed mean) | 2.190, converged | 2.05 (2.0–2.1)¹ | ±6% | ❌ **open finding** (+6.8%) |
+| BM-2 Cylinder, Re = 20 (D = 30) | Cd (windowed mean) | 2.190, converged | 2.05 (2.0–2.1)¹ | reported (sanity 1.8–2.4) | 📄 **known limitation** (+6.8%) |
 | BM-3 Cylinder, Re = 100 (D = 30) | mean Cd | **1.428** (+6.6%) | 1.34 (1.33–1.35)² | ±7% | ✅ |
 | BM-3 Cylinder, Re = 100 (D = 30) | St | **0.1691** (+2.5%) | 0.165 (0.164³) | ±5% | ✅ |
 | Re-ceiling smoke (rev 2, informative) | finiteness at τ = 0.51008 | finite through 25k steps, D = 12, Re = 250 ≈ 21·D | — | non-gating | ✅ |
 
 ¹ Dennis & Chang (1970), Fornberg (1980), Coutanceau & Bouard (1977) — steady
-regime; recirculation length L_r/D ≈ 0.92.
+regime; recirculation length L_r/D ≈ 0.92. *(verify page/volume before external use)*
 ² Braza, Chassaing & Ha Minh (1986); established 2D simulations cluster at
-1.33–1.35.
+1.33–1.35. *(verify page/volume before external use)*
 ³ Williamson (1989), experimental St–Re relationship: St = 0.164 at Re = 100.
+*(verify page/volume before external use)*
 
-**Two of three benchmarks pass at the official setup; BM-2 is a converged,
-documented open finding.** Reference values are for **unbounded** flow. The
+**Two of three benchmarks pass their literature gates; BM-2 is a converged,
+documented known-limitation — reported, not gated (spec 1.2f).** Reference
+values are for **unbounded** flow. The
 excess over unbounded windows decomposes into two *measured* biases — wall
 boundary layers (removed by free-slip walls) and staircase/resolution
 (removed by the D = 20 → 30 refinement, first-order in 1/D) — see the
@@ -55,9 +57,16 @@ discriminator: doubling the outlet distance to 50D left the mean Cd unchanged
 outlet mode is real but is a bounded *oscillation* the windowed mean already
 removes; it is not the mean bias. By elimination (resolution ruled out by
 refinement, outlet ruled out by D-4) the residual is **low-Re confinement** —
-see the D-4 subsection and the reframed open finding. Per the phase 1.2d hard
-rule, BM-2 outside 2.05 ± 6% at D = 30 is a **stop-and-report** — no window
-edits, no retuning — and phase close-out is deferred to the maintainer.
+see the D-4 subsection and the confined-cylinder-literature note below. Per
+the maintainer decision (spec 1.2f), BM-2 is **closed as a documented
+known-limitation, not gated**: the benchmark runs and reports its scoreboard
+(measured Cd, unconfined reference, deviation, mechanism tag) but asserts only
+a loose sanity bound (1.8 ≤ Cd ≤ 2.4, catching gross regressions/NaN) —
+intentionally not the literature ±6% window. BM-1 and BM-3 remain fully
+literature-gated. A literature-tight *confined* gate is deferred to v2: the
+canonical confined references use a **parabolic inlet** whereas SOPLO uses a
+uniform one, and the confinement bias depends on the inlet profile, so a
+confined comparison now would confound setup with solver (see the note below).
 
 ## BM-1 · Plane Poiseuille, Re_H = 20 — PASS
 
@@ -79,7 +88,7 @@ gate, with the peak/mean ratio at −0.24% of analytic. This is the only case
 with an exact solution, and it validates viscosity, wall placement and the
 new BC pair in one shot.
 
-## BM-2 · Cylinder at Re = 20 (D = 30, free-slip) — converged, out of window
+## BM-2 · Cylinder at Re = 20 (D = 30, free-slip) — reported (known limitation)
 
 Official setup: 1080×600, D = 30 (β = 5%), free-slip side walls. Full
 150,000-step run; the convergence gate and reported Cd use the final 50,000
@@ -87,14 +96,16 @@ steps (corrected gate below). BM-2 has no perturbation/RNG, so the run is
 bit-reproducible and the reported Cd is deterministic.
 
 ```
-================ BM-2 · Cylinder, Re = 20 (steady) ================
+======= BM-2 · Cylinder, Re = 20 (steady) — REPORTED (known limitation) =======
 setup: 1080×600, D = 30 (β = 5%), free-slip side walls, 150000 steps,
-       gate on final 50000 steps (two 25000-step window means within 0.2%:
-       2.1895/2.1903), Cd = mean over that tail
-FAIL  Cd (windowed mean): measured 2.190  | literature 2.05 (range 2.0–2.1)  | rel.err 6.82%
-PASS  |Cl| max over tail (symmetry at scale): measured 1.09e-13  | 0 (tolerance 0.01)
-INFO  Cd oscillation (outlet cavity mode): ±0.0504, period ≈ 1682 steps  | acoustic round trip 2·Nx/c_s ≈ 3741 steps
-INFO  L_r/D (not gating): measured 0.995  | ≈ 0.92
+       reported Cd = mean over final 50000 steps (two 25000-step window means
+       within 0.2%: 2.1895/2.1903, converged); reporting benchmark, not
+       literature-gated
+REPORTED   Cd (windowed mean) vs UNCONFINED ref: measured 2.190  | literature 2.05 unconfined (2.0–2.1); not a gate — sanity 1.8–2.4  | rel.err 6.82%
+MECHANISM  known limitation (spec 1.2f): low-Re confinement · β = 5% · uniform inlet  | outlet ruled out (D-4), resolution ruled out (1/D)
+INFO       |Cl| max over tail (symmetry at scale): measured 1.09e-13  | 0 (≈ machine zero)
+INFO       Cd oscillation (outlet cavity mode): ±0.0504, period ≈ 1682 steps  | acoustic round trip 2·Nx/c_s ≈ 3741 steps
+INFO       L_r/D (not gating): measured 0.995  | ≈ 0.92
 ```
 
 Cd = 2.190 is **converged** (the two 25k tail windows agree to 0.04%) but
@@ -102,7 +113,31 @@ Cd = 2.190 is **converged** (the two 25k tail windows agree to 0.04%) but
 drifting (mean density stationary at 0.9997, |Cl| ~ 1e-13) and not shedding
 (Re = 20 is far below the onset Re ≈ 47): the ±0.05 oscillation is the outlet
 acoustic cavity mode (below), which the windowed mean averages out. The
-residual excess is analysed in the refinement study and the open finding.
+residual excess is analysed in the refinement study and the known-limitation
+note. **BM-2 is a reporting benchmark (spec 1.2f):** it prints this scoreboard
+but gates only on the loose sanity bound 1.8 ≤ Cd ≤ 2.4.
+
+### Why the confined gate is v2 — uniform vs. parabolic inlet
+
+The unconfined reference (Cd ≈ 2.05, footnote ¹) is what SOPLO is compared
+against, and the +6.8% residual is attributed to low-Re confinement (β = 5%).
+The obvious alternative — gate against *confined*-cylinder literature instead —
+was investigated and **deferred to v2, not adopted now**, because the setups do
+not match. The canonical confined-cylinder references (e.g. Chakraborty,
+Verma & Deshpande, *Int. J. Thermal Sciences* 2004, and successors) impose a
+**parabolic (Poiseuille) inlet profile** in a channel, whereas SOPLO's inlet
+is **uniform** (plug flow). The confinement correction to Cd depends on the
+inlet profile — a parabolic inlet accelerates the centreline core past the
+cylinder differently from a uniform one — so comparing SOPLO's uniform-inlet
+Cd to a parabolic-inlet reference would **confound the setup difference with
+the solver**, defeating the point of a benchmark. What the literature does
+support, and what we cite, is the *direction and cause* of the bias, not a
+target number: Cd at fixed blockage decreases with Re, and wall proximity
+raises Cd most at low blockage / low Re, where the disturbance decays slowly
+(~1/r). A clean confined gate therefore requires a **parabolic inlet BC**,
+which also unlocks the Schäfer–Turek confined-cylinder benchmark; the two are
+a coupled v2 item (see PROJECT_CONTEXT.md backlog). Reference:
+Chakraborty et al. (2004). *(verify page/volume before external use)*
 
 ## BM-3 · Cylinder at Re = 100 (D = 30, free-slip) — PASS
 
@@ -254,11 +289,14 @@ with domain size and blockage. This is by elimination plus the cited
 literature, not a direct blockage measurement (a β sweep would confirm it
 directly and is a maintainer option, below).
 
-Per the 1.2e hard rule this is a **stop-and-report**: no window edits, no
+Per the 1.2e hard rule this was a **stop-and-report**: no window edits, no
 retuning, no solver changes, and the official BM-2 setup stays at 25D
 (Nx = 1080) — the 50D domain reproduces the same mean at ~70% more cells
-(1.10M vs 0.65M), so there is no reason to adopt it. The full phase close-out remains deferred to
-the maintainer (it was gated on BM-2 landing in window, which it did not).
+(1.10M vs 0.65M), so there is no reason to adopt it. The full phase close-out
+was deferred to the maintainer (it was gated on BM-2 landing in window, which
+it did not); **phase 1.2f then executed it** — BM-2 closed as a reported
+known-limitation (not gated), and the close-out (app smoke, AGENTS.md, decision
+log) completed. See the closed finding above.
 
 ## Corrected BM-2 convergence gate (measurement-definition fix)
 
@@ -424,17 +462,21 @@ prediction (e.g. |ρ_mean − (1 + Δρ_analytic/2)| ≤ 2·10⁻³), or raise t
 absolute gate to ~2·10⁻² (still 10× below the 1.2 failure signature), or gate
 on the outlet-column density instead. Not for the implementer to pick.
 
-## Open finding: BM-2 mean residual is low-Re confinement (outlet ruled out; stop-and-report)
+## Closed finding: BM-2 mean residual is low-Re confinement (known-limitation, reported not gated)
 
-**Status:** open · BM-2 only (BM-3 closed at D = 30, see above) ·
-phase 1.2e stop-and-report per the hard rule: BM-2 outside 2.05 ± 6% at
-D = 30 → document the value, the D = 20 → 30 trend, the 1/D extrapolation and
-the D-4 outlet-distance discriminator, then stop — no window edits, no
-retuning, no closure. **Update (phase 1.2e):** the leading suspect was
-reflective-outlet reflectivity biasing the *mean*; D-4 tested it directly
-(outlet 25D → 50D) and refuted it — the mean did not move. The residual is
-reattributed to low-Re confinement (see "What remains" and the D-4
-subsection).
+**Status:** **closed** as a documented known-limitation (maintainer decision,
+spec 1.2f) · BM-2 only (BM-3 closed at D = 30, see above). The phase-1.2e
+stop-and-report established the mechanism by elimination; phase 1.2f converts
+BM-2 to a **reporting benchmark** (loose sanity bound 1.8 ≤ Cd ≤ 2.4, not the
+literature ±6% window) and closes the finding. **Mechanism:** low-Re
+confinement (β = 5%, uniform inlet) — the reflective outlet was refuted by
+D-4 (outlet 25D → 50D left the mean unchanged, 2.190 → 2.189), resolution by
+the 1/D refinement study. A literature-tight *confined* gate (parabolic inlet
+→ Schäfer–Turek) is a coupled v2 item. **Update (phase 1.2e):** the leading
+suspect was reflective-outlet reflectivity biasing the *mean*; D-4 tested it
+directly (outlet 25D → 50D) and refuted it — the mean did not move. The
+residual is reattributed to low-Re confinement (see "What remains" and the
+D-4 subsection).
 
 **History.** Discovered 2026-07-16 on re-running the benchmarks under the
 well-posed Zou–He + Lallemand–Luo system: both cylinder cases read high
@@ -482,20 +524,21 @@ option below. The force-path suspect (c) stays unlikely: BM-1's 0.159%, the
 exact BC-1 moments, and BM-3's clean pass at D = 30 all exercise the same
 force path.
 
-**Why it is a stop, not a fix.** Confirming or removing the confinement bias
-means changing the physical setup (a lower-blockage / larger-Ny domain, a
-β sweep, or a confined-reference comparison) or accepting the offset — none
-of which the implementer may choose unilaterally, and none of which is a
-window edit or a retune. The outlet cavity mode remains on the **backlog** (a
-non-reflecting / convective outlet is the elegant fix — see below), now
-motivated by app-side vortex-exit cleanliness rather than by BM-2's mean,
-which D-4 showed it does not set. The maintainer's options: (a) run a
-blockage sweep to measure the low-Re confinement offset directly and adopt a
-confined-reference window or a documented tolerance; (b) adopt a documented
-BM-2 tolerance against *confined* references rather than unbounded ones;
-(c) accept BM-2 as a documented known-limitation benchmark. Phase close-out
-(app smoke, AGENTS.md BC-row note, decision log) is deferred until this is
-resolved.
+**Resolution (spec 1.2f): option (c) — accept BM-2 as a documented
+known-limitation benchmark.** The maintainer chose it over (a) a blockage
+sweep and (b) a confined-reference gate. A confined gate (b) needs a parabolic
+inlet SOPLO does not yet have: the canonical confined references use one, the
+confinement bias depends on the inlet profile, and comparing SOPLO's uniform
+inlet to a parabolic-inlet reference would confound setup with solver (see
+"Why the confined gate is v2"). A blockage sweep (a), while a clean direct
+confirmation, is a v2 measurement. BM-2 is therefore converted to a reporting
+benchmark: it prints its scoreboard and asserts only a loose sanity bound; the
++6.8% residual is documented here as low-Re confinement. Confirming it
+directly (a β sweep 5% → 2.5%) and a tight confined gate (parabolic inlet →
+Schäfer–Turek) are coupled v2 items (PROJECT_CONTEXT.md backlog). The outlet
+cavity mode remains on the **backlog** (a non-reflecting / convective outlet
+is the elegant fix — see below), motivated by app-side vortex-exit cleanliness
+rather than by BM-2's mean, which D-4 showed it does not set.
 
 **Backlog — convective / non-reflecting outlet (CBC).** The Zou–He pressure
 plane is acoustically reflective; the resulting cavity mode is identified,
@@ -522,8 +565,9 @@ motivation on record.
   walls (the unconfined-comparison configuration); unbounded-flow references
   carry a systematic offset at this blockage that is larger at low Re, where
   the disturbance decays slowly (~1/r). After D-4 ruled out the outlet, this
-  low-Re confinement is the leading explanation for BM-2's residual mean
-  excess (+6.8%) — see the open finding. The app default is no-slip walls.
+  low-Re confinement is the documented explanation for BM-2's residual mean
+  excess (+6.8%) — see the closed finding (reported, not gated; spec 1.2f).
+  The app default is no-slip walls.
 - **Reflective outlet.** The Zou–He pressure outlet is acoustically
   reflective and, with the reflective velocity inlet, sustains a bounded
   acoustic cavity mode in the cylinder domains (period ~ Nx/c_s). It is
