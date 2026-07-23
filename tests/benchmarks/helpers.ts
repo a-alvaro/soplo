@@ -2,6 +2,9 @@
 // (docs/specs/phase-1-validation.md §1.2, official setups per
 // docs/specs/phase-1-2d-benchmark-closure.md).
 
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { LBMSolver } from '../../src/lbm/LBMSolver';
 
 /**
@@ -73,4 +76,82 @@ export function printReport(title: string, setup: string, rows: ReportRow[]): vo
   // from passing tests in run mode, and these blocks are the raw material
   // for VALIDATION.md.
   process.stdout.write(lines.join('\n') + '\n');
+}
+
+// ─── Fixture emission ─────────────────────────────────────────────────────────
+
+/** Metadata a Cl-trace fixture carries alongside its samples. */
+export interface ClTraceMeta {
+  /** Solver steps between decimated samples — the app's forceHistory tick. */
+  cadence: number;
+  /** Cylinder diameter in cells. */
+  D: number;
+  /** Lattice inlet velocity. */
+  u0: number;
+  Nx: number;
+  Ny: number;
+  sideWalls: string;
+  discardSteps: number;
+  measureSteps: number;
+  /**
+   * Strouhal from Cl zero crossings at FULL rate, measured in the same run
+   * that produced these samples. The fixture must carry its own reference:
+   * BM-3's transient uses Math.random(), so a different run lands on slightly
+   * different statistics and the published 0.1691 belongs to another run.
+   */
+  stFullRate: number;
+}
+
+export interface ClTraceFixture extends ClTraceMeta {
+  /** Commit the emitting run was built from. */
+  commit: string;
+  /** Decimated Cl samples, chronological, 6 significant digits. */
+  samples: number[];
+}
+
+function currentCommit(): string {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Write a decimated Cl trace as a committed test fixture.
+ *
+ * **Emission is opt-in — the guard lives here, not at the call site.** A bench
+ * run must never silently rewrite a fixture that gates the fast tier; that
+ * would be a self-certifying loop where the estimator validates itself against
+ * output it just produced. Regenerating is a deliberate act with its own
+ * commit (`test: regenerate BM-3 Cl fixture — reason`).
+ *
+ * Set `SOPLO_WRITE_FIXTURES=1` to enable. See
+ * docs/specs/phase-1-3a-strouhal-fft.md §2.
+ *
+ * @param relPath fixture path relative to the repo root.
+ * @param meta run parameters, including the full-rate reference St.
+ * @param clFullRate the per-step Cl signal over the measurement window.
+ */
+export function writeTrace(
+  relPath: string,
+  meta: ClTraceMeta,
+  clFullRate: readonly number[],
+): void {
+  if (process.env.SOPLO_WRITE_FIXTURES !== '1') return;
+
+  const samples: number[] = [];
+  for (let i = 0; i < clFullRate.length; i += meta.cadence) {
+    samples.push(Number(clFullRate[i].toPrecision(6)));
+  }
+
+  const fixture: ClTraceFixture = { ...meta, commit: currentCommit(), samples };
+  const out = resolve(process.cwd(), relPath);
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, JSON.stringify(fixture, null, 2) + '\n');
+
+  process.stdout.write(
+    `wrote ${relPath}: ${samples.length} samples at cadence ${meta.cadence}, ` +
+      `full-rate St = ${meta.stFullRate.toFixed(4)}, commit ${fixture.commit.slice(0, 7)}\n`,
+  );
 }
