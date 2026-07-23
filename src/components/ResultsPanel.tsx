@@ -7,6 +7,12 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import {
+  williamsonSt,
+  type StrouhalEstimate,
+  type StrouhalStatus,
+} from '../physics/spectral';
+import type { GeometryType } from '../types/SimConfig';
 
 export interface ForceSnapshot {
   step: number;
@@ -18,6 +24,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   history: ForceSnapshot[];
+  /** Spectral estimate of the shedding frequency, from useSimulation. */
+  strouhal: StrouhalEstimate;
+  /** Geometry of the *built* solver — gates the literature reference. */
+  geometryType: GeometryType | null;
+  /** Reynolds number of the built solver — the reference is Re-dependent. */
+  Re: number;
 }
 
 // ─── Convergence status ───────────────────────────────────────────────────────
@@ -78,9 +90,41 @@ function fmt(n: number, digits = 3): string {
   return n.toFixed(digits);
 }
 
+// ─── Strouhal ─────────────────────────────────────────────────────────────────
+
+const STROUHAL_STATUS_TEXT: Record<StrouhalStatus, string> = {
+  ok: '',
+  filling: 'collecting samples — needs ≥ 6 shedding periods',
+  'no-peak': 'no dominant frequency — flow is not shedding periodically',
+  'band-edge': 'peak unresolved at the low edge of the search band',
+};
+
+/**
+ * Literature reference for the measured St, or null when there is none to
+ * honestly show.
+ *
+ * Only the built-in circle gets one: a cylinder correlation printed beside a
+ * NACA, SVG or DXF body is a false reference, and AGENTS.md rule 2 makes
+ * weakening physical honesty a physics change. Outside 49 < Re < 178 the
+ * Williamson correlation itself does not apply — below ≈ 47 there is no
+ * shedding, above ≈ 180 the wake is three-dimensional and a 2D value is not
+ * comparable.
+ */
+function literatureSt(geometryType: GeometryType | null, Re: number): number | null {
+  if (geometryType !== 'cylinder') return null;
+  return williamsonSt(Re);
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ResultsPanel({ open, onClose, history }: Props) {
+export function ResultsPanel({
+  open,
+  onClose,
+  history,
+  strouhal,
+  geometryType,
+  Re,
+}: Props) {
   // Last snapshot for live readout
   const last = history.at(-1);
   const Cd = last?.Cd ?? 0;
@@ -98,6 +142,7 @@ export function ResultsPanel({ open, onClose, history }: Props) {
   const clStd = std(clArr, clMean);
 
   const status = convergenceStatus(history);
+  const stReference = literatureSt(geometryType, Re);
 
   // Chart data — last 200 points, rounded for performance
   const chartData = history.slice(-200).map((h) => ({
@@ -228,6 +273,35 @@ export function ResultsPanel({ open, onClose, history }: Props) {
               </div>
             </div>
           )}
+
+          {/* Strouhal */}
+          <div className="results-section-label">// STROUHAL</div>
+          <div className="results-stats">
+            <div className="results-stats-row">
+              <span style={{ color: '#00cc66' }}>St = f·D/u₀</span>
+              <span>
+                {strouhal.status === 'ok' && strouhal.st !== null
+                  ? fmt(strouhal.st, 4)
+                  : '—'}
+              </span>
+            </div>
+            {strouhal.status === 'ok' ? (
+              <span className="results-stats-label">
+                {strouhal.periods.toFixed(0)} shedding periods in the record ·
+                peak prominence {strouhal.prominence.toFixed(0)}×
+              </span>
+            ) : (
+              <span className="results-stats-label">
+                {STROUHAL_STATUS_TEXT[strouhal.status]}
+              </span>
+            )}
+            {stReference !== null && (
+              <span className="results-stats-label">
+                Circular cylinder, Re {Math.round(Re)}: {fmt(stReference, 4)}{' '}
+                — Williamson (1989) laminar correlation
+              </span>
+            )}
+          </div>
 
           {/* Status */}
           <div className="results-section-label">// STATUS</div>
