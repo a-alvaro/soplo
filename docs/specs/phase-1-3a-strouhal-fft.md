@@ -98,6 +98,46 @@ UI/measurement session; this pass covers the estimator core and tests only.
 
 ---
 
+## Rev 3 — UI honesty and F8 (the UI/measurement session)
+
+This session implements the two items Rev 2 deferred: the β-annotation of the
+literature reference (F1's honesty half) and the F8 production-build
+investigation. No solver, spectral-core, benchmark or fixture changes.
+
+**(a) Why the literature reference needs a blockage annotation.** The app can
+only build β = 10/20/40% cylinders: `resolveDomainSize()` fixes Ny = 100 in
+freeflow and the tunnel mode is hidden, so at LOW/MED/HIGH the diameter is
+D = 10/20/40 and β = D/Ny = 10/20/40%. A confined cylinder legitimately sheds
+*above* the unconfined Williamson value — Rev 2(f) already bounded the split:
+at β = 10% the observed +10% deviation is ~3% resolution and the rest
+confinement; confinement dominates by 3–15×. The panel currently prints, e.g.,
+`measured 0.1812 / Williamson 0.1643` with no context, which reads as a solver
+error when it is the user's own setup. AGENTS.md rule 2 (never weaken physical
+honesty; surfacing a caveat is a physics requirement) makes closing this gap a
+requirement, not a nicety. **The fix is to annotate the reference, not to hide
+it**: state that Williamson is unconfined, show the user's β, and say in one
+plain sentence that the gap is the confinement, not a solver error. The
+annotation is gated on β > 5% (every in-app cylinder today); at β ≤ 5% — not
+buildable in-app, but the logic stays honest — the reference shows without the
+caveat.
+
+**(b) The F8 question this session answers.** F8 was a dev-mode crash at
+~65,000 steps. The spectral buffer needs 4096 · 20 = 81,920 steps to fill, so
+if the crash is real the feature's full operating mode (an estimate over 4096
+real samples) has never been reached. This session runs a **production build**
+(`npm run build && npm run preview`) of a LOW cylinder at Re 100 past 100,000
+steps to attribute the crash: if production survives a full buffer, F8 is a
+React dev-instrumentation artifact and a non-issue; if production crashes too,
+that is our code and a merge blocker — in which case: stop and report, do not
+work around it. This is a measurement, not a code change; any logging lives in
+a throwaway branch or the browser console and is reverted.
+
+The measurement campaigns (prominence curve, F8 build, and re-confirmation of
+the app-vs-headless agreement after the Rev 2 band change) are reported to the
+maintainer and produce no committed artifacts.
+
+---
+
 ## Erratum — the Phase 1 Definition of Done gate is unsatisfiable
 
 `phase-1-validation.md` currently closes with:
