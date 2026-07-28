@@ -4,7 +4,7 @@ import { CHAR_CELLS, U0, estimatorFrom } from './helpers';
 
 // SP-7 (spec §3): broadband noise, no tone → st === null, status 'no-peak'.
 //
-// The prominence guard is peak/median of the in-band magnitudes < 10. For
+// The prominence guard is peak/median of the in-band magnitudes < 100 (raised from 10 in rev 2). For
 // Rayleigh-distributed noise magnitudes the largest of ~1,000 bins sits around
 // 3–4× the median, an order of magnitude below a saturated limit cycle. This
 // is the test that keeps a pre-shedding or steady wake from displaying a

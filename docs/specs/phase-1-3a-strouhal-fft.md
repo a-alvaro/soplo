@@ -326,7 +326,7 @@ full pipeline on real solver output instead of only on synthetic tones.
 | ID | Test | Acceptance |
 |---|---|---|
 | SP-1 | Radix-2 FFT vs naive DFT, 64-point random input | max abs error ≤ 1e-12 |
-| SP-2 | Pure sine at a **non-round** frequency (0.0137 1/steps — round frequencies let factor-20 and 2π errors pass by coincidence) | recovered frequency within 1% |
+| SP-2 | Pure sine at a **non-round** frequency (4.27e-4 1/steps, St 0.183 — round frequencies let factor-20 and 2π errors pass by coincidence) | recovered frequency within 1% |
 | SP-3 | Sine + white noise at 20 dB SNR | within 1% |
 | SP-4 | Sine + slow linear drift (tests mean removal + windowing) | within 1% |
 | SP-5 | Signal at 2·f (a Cd-like input) | returns 2·f, **not** f — documents that the caller must pass Cl |

@@ -20,7 +20,7 @@ export const CHAR_CELLS = 30;
  * the search band had no physical upper edge. The rev-2 St cap (ST_MAX = 0.35,
  * spec §Rev 2 a) now correctly rejects anything that fast, so the tone moves
  * inside the band: 4.27e-4 1/steps is St 0.1830 at the BM-3 setup — non-round
- * in both f and St (bin 8.74 at cap 1024, not integer), so it still catches a
+ * in both f and St (bin 17.49 at N = 2048, not integer), so it still catches a
  * factor-20 or 2π error, which is all SP-2 exists to do.
  */
 export const TEST_FREQ = 4.27e-4;
@@ -29,11 +29,10 @@ export const TEST_FREQ = 4.27e-4;
  * A realistic shedding frequency in 1/steps for the official BM-3 setup:
  * f = St·u0/D with St = 0.165, i.e. ≈ 3.85·10⁻⁴ (a period of ≈ 2,600 steps).
  *
- * SP-2 pins the cadence conversion with the mandated non-round 0.0137; the
- * remaining tests run here instead, three orders of magnitude lower, where the
- * pipeline actually operates — a drift skirt or a noise floor competes with a
- * peak at 0.0077 cycles/sample in a way it never does at 0.274. It also keeps
- * 2·f (SP-5) below Nyquist, which 2·0.0137 is not.
+ * SP-2 pins the cadence conversion with a non-round frequency (see TEST_FREQ
+ * above, moved to 4.27e-4 in rev 2 so it sits inside the ST_MAX band while
+ * staying non-round). SHED_FREQ is the realistic shedding rate used by
+ * SP-3…SP-8; SP-5 doubles it and stays below Nyquist.
  */
 export const SHED_FREQ = (0.165 * U0) / CHAR_CELLS;
 

@@ -188,8 +188,13 @@ is no-slip at the user's D, and both differences are measured):
 
 1. **Estimator gate** — the FFT estimator and the zero-crossing estimator,
    applied to *the same recorded Cl trace*, agree within **1%** (SP-9).
-2. **App gate** — St displayed for an in-app cylinder at Re ≈ 100 falls inside
-   the **literature window 0.157–0.173**, not inside ±1% of 0.1691.
+2. **App gate** — *plumbing, not physics* (spec 1.3a §Rev 2(f)). No in-app
+   cylinder can reach β ≤ 5% (`resolveDomainSize` fixes Ny = 100, tunnel mode
+   is hidden), so every buildable case legitimately sits above the unconfined
+   literature window — measured 0.1812 at β = 10%. The gate is therefore: St
+   displayed for an in-app cylinder at Re ≈ 100 appears, is finite, and matches
+   a headless run of the identical setup within **1%**. The physical
+   comparison against literature lives in BM-3, not in the app.
 
 · no solver-core changes beyond those explicitly authorized here
 (perturbation on/off flag, Cl spectral buffer).

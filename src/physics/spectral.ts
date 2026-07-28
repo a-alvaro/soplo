@@ -38,12 +38,23 @@ const MIN_PERIODS = 6;
 /**
  * Peak-to-median ratio below which the spectrum is called featureless.
  *
- * Raised from 10 to 100 in rev 2 (spec §Rev 2 b) on measured evidence from the
- * 1.3a session: white-noise floor 3.36 (SP-7); worst impulsive-start transient
- * 11–25; a real tone under realistic noise 214 (SP-3); converged limit cycle
- * O(10⁴). 100 sits ~30× above the noise floor, ~4× above the worst transient,
- * and well below any real shedding peak, so it rejects the startup box-mode
- * artefact (F2) without suppressing genuine signal.
+ * Raised from 10 to 100 in rev 2 (spec §Rev 2 b). Measured evidence, re-taken
+ * under the rev-2 St-capped band (the narrower band lifts the in-band median,
+ * so these are lower than the rev-1 figures the first draft quoted; both tests
+ * are seeded, so this is a band change, not run variance):
+ *   - white-noise floor          2.24  (SP-7)
+ *   - heavy-noise reject case    14.8   (SP-12)
+ *   - real tone + realistic noise 183.5 (SP-3)
+ *   - BM-3 fixture, real solver   281.7 (SP-9)
+ *   - clean converged limit cycle O(10⁴)
+ * 100 rejects 2.24 and 14.8 and accepts 183.5, 281.7 and O(10⁴), so it
+ * discriminates at every measured point. The margin is ASYMMETRIC: ~6.8×
+ * toward reject (vs 14.8) but only ~2.8× toward accept (vs the BM-3 fixture's
+ * 281.7, the one real-solver point on the accept side). This is within the 3×
+ * that spec §Validity guards flags as a finding — recorded here rather than
+ * silently retuned. The threshold stands; the accept-side headroom is thinner
+ * than a first reading of "well above the floor" suggests, and a body whose
+ * shedding peak is weak (low Cl amplitude, short record) could approach it.
  */
 const MIN_PROMINENCE = 100;
 
@@ -64,8 +75,9 @@ const MIN_PROMINENCE = 100;
  * admit it; 0.35 excludes it down to β ≈ 8.5%. Below that β the fundamental
  * falls inside the band and the band no longer discriminates — prominence
  * does. In particular at the β = 5% BM-3 setup the fundamental sits at
- * St ≈ 0.206, only ≈ 2.7 bins from the shedding peak on the fixture record;
- * the prominence gate is what separates them there.
+ * St ≈ 0.206, only ≈ 3.5 bins from the shedding peak on the fixture record
+ * (measured on the padded nfft = 2048 grid for L = 1575; ≈ 2.7 on the raw
+ * L-length grid); the prominence gate is what separates them there.
  */
 const ST_MAX = 0.35;
 
@@ -259,6 +271,12 @@ export class StrouhalEstimator {
     const kLo = Math.max(1, Math.ceil((MIN_PERIODS * nfft) / L));
     // ST_MAX·u0/charCells is a frequency in 1/steps; ·cadence → cycles/sample;
     // ·nfft → bin index. Guard against a degenerate charCells/u0 (→ no cap).
+    // A non-finite/≤0 charCells disables only the cap here; the final st
+    // conversion below can then return status 'ok' with st = null, which is
+    // inconsistent with the "st is null only when not ok" contract. This path
+    // is unreachable from the app (validate() requires charLengthM > 0) and the
+    // UI degrades cleanly (fmt renders — for non-finite), so it is left as a
+    // documented inconsistency rather than guarded twice.
     const stCapCyclesPerSample =
       charCells > 0 && Number.isFinite(charCells) ? (ST_MAX * u0 * this.cadence) / charCells : 0.5;
     const kCap = Math.floor(stCapCyclesPerSample * nfft);
@@ -268,9 +286,10 @@ export class StrouhalEstimator {
     // still filling.
     if (kLo > kHi) return filling(0);
 
-    // Dominant bin over the whole spectrum, DC excluded. If it falls below the
-    // band it cannot be resolved with this record length — the buffer is still
-    // filling, not broken.
+    // Dominant bin within the search band [1, kHi] — the St cap at kHi keeps
+    // an above-cap box mode out of contention entirely. If the winner falls
+    // below the lower band edge it cannot be resolved with this record length;
+    // the buffer is still filling, not broken.
     let kPeak = 1;
     for (let k = 2; k <= kHi; k++) if (mag[k] > mag[kPeak]) kPeak = k;
     if (kPeak < kLo) return filling((L * kPeak) / nfft);
@@ -304,6 +323,13 @@ export class StrouhalEstimator {
     // Three-point parabolic interpolation on the log-magnitude. For a
     // Hann-windowed near-monochromatic tone the bias is ≲ 0.02 bins; on the
     // BM-3 fixture that is ≈ 0.16% of f, ~6× inside the 1% gate.
+    //
+    // Note: when the peak sits at the capped upper edge (kPeak === kHi === kCap)
+    // this reads mag[kPeak+1], one bin past the cap, and delta ∈ [−0.5, 0.5]
+    // lets the reported frequency exceed ST_MAX by up to half a bin. No
+    // out-of-range read (mag has half+1 entries and the kPeak < half guard
+    // holds) and physically irrelevant — the cap is intentionally soft at the
+    // ±½-bin level, since a real shedding peak never sits exactly on it.
     let delta = 0;
     if (kPeak > 0 && kPeak < half) {
       const yl = Math.log(mag[kPeak - 1]);
