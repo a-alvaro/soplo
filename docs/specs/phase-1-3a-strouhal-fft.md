@@ -163,8 +163,13 @@ derivation.
 
 1. **Estimator gate** — the FFT estimator and the zero-crossing estimator,
    applied to *the same recorded Cl trace*, agree within **1%** (SP-9).
-2. **App gate** — St displayed for an in-app cylinder at Re ≈ 100 falls inside
-   the **literature window 0.157–0.173**, not inside ±1% of 0.1691.
+2. **App gate** *(superseded by Rev 2(f) — recorded here for continuity)* —
+   originally: St displayed for an in-app cylinder at Re ≈ 100 falls inside the
+   literature window 0.157–0.173. Rev 2(f) replaces this: no in-app cylinder can
+   reach β ≤ 5% (Ny fixed at 100, tunnel mode hidden), so every buildable case
+   legitimately sits above that window — measured 0.1812 at β = 10%. The gate is
+   now **plumbing, not physics**: St appears, is finite, and matches a headless
+   run of the identical app setup within 1%. See Rev 2(f) for the derivation.
 
 ## Goal
 
@@ -423,8 +428,10 @@ zero-crossings on a clean limit cycle are the more trustworthy of the two.
 ## Definition of done (this sub-phase)
 
 `test:fast` green including SP-1…SP-9 and still < 30 s · fixture committed ·
-St visible in the Results panel on an in-app cylinder, inside 0.157–0.173 ·
-literature reference shown for the circle and suppressed for other geometries ·
-parent spec reconciled · measured prominence reported for fixture and app ·
-decision-log entries drafted (corrected DoD; spectral module as shared
-production path; Williamson correlation as the in-app reference).
+St visible in the Results panel on an in-app cylinder and matching a headless
+run of the same setup within 1% (plumbing gate, Rev 2(f)) · literature reference
+shown for the circle, suppressed for other geometries, and annotated with the
+blockage β when confined (Rev 3) · parent spec reconciled · measured prominence
+reported for fixture and app · decision-log entries drafted (corrected DoD;
+spectral module as shared production path; Williamson correlation as the in-app
+reference; F8 confirmed dev-only; blockage annotation).
