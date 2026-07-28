@@ -51,7 +51,7 @@ function zeroCrossingSt(
 // SKIPPED ON THIS BRANCH: tests/fixtures/bm3-cl-trace.json needs a ~3 h BM-3
 // run to generate — `SOPLO_WRITE_FIXTURES=1 npm run test:bench -- bm3-cylinder-re100`
 // (spec 1.3a §2); un-skip in the same commit that lands the fixture.
-it.skip('SP-9: FFT estimate on the BM-3 Cl fixture agrees with zero crossings within 1%', () => {
+it('SP-9: FFT estimate on the BM-3 Cl fixture agrees with zero crossings within 1%', () => {
   const fixture: ClTraceFixture = JSON.parse(
     readFileSync(resolve(process.cwd(), FIXTURE), 'utf8'),
   );
@@ -78,7 +78,7 @@ it.skip('SP-9: FFT estimate on the BM-3 Cl fixture agrees with zero crossings wi
       `  zero-cross full rate  St = ${stFullRate.toFixed(4)}` +
       `                 rel.err ${(errVsFullRate * 100).toFixed(3)}%\n` +
       `  peak prominence = ${r.prominence.toFixed(1)}× ` +
-      `(threshold 10; within 3× of it is a finding)\n`,
+      `(threshold 100)\n`,
   );
 
   expect(r.status).toBe('ok');

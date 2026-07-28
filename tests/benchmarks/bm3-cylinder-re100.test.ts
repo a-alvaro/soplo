@@ -110,7 +110,7 @@ it('BM-3: cylinder at Re 100 — mean Cd and Strouhal vs literature', { timeout:
       u0: CYL.u0,
       Nx: CYL.Nx,
       Ny: CYL.Ny,
-      sideWalls: 'free-slip',
+      sideWalls: CYL.sideWalls,
       discardSteps: DISCARD,
       measureSteps: MEASURE,
       stFullRate: st,
