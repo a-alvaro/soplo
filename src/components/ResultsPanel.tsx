@@ -30,6 +30,10 @@ interface Props {
   geometryType: GeometryType | null;
   /** Reynolds number of the built solver — the reference is Re-dependent. */
   Re: number;
+  /** Body size in cells (D) of the built solver — for the blockage ratio β = D/Ny. */
+  charCells: number | null;
+  /** Cross-stream domain size in cells of the built solver — the β denominator. */
+  Ny: number | null;
 }
 
 // ─── Convergence status ───────────────────────────────────────────────────────
@@ -115,6 +119,26 @@ function literatureSt(geometryType: GeometryType | null, Re: number): number | n
   return williamsonSt(Re);
 }
 
+/** Blockage ratio β = D/Ny, or null when the built quantities are unavailable. */
+function blockageRatio(charCells: number | null, Ny: number | null): number | null {
+  if (charCells === null || Ny === null || Ny <= 0) return null;
+  return charCells / Ny;
+}
+
+/**
+ * Confinement caption for the literature reference, or null when β is unknown
+ * or ≤ 5% (unconfined-comparable — no caveat needed). Williamson's correlation
+ * is unconfined; every in-app cylinder is confined (β = 10/20/40%, since Ny is
+ * fixed at 100 and the tunnel mode is hidden), so measured St legitimately runs
+ * above the reference. Saying so keeps the reference honest (AGENTS.md rule 2)
+ * instead of letting the gap read as a solver error.
+ */
+export function blockageCaption(beta: number | null): string | null {
+  if (beta === null || beta <= 0.05) return null;
+  const pct = Math.round(beta * 100);
+  return `Your setup: β = ${pct}% (confined) — measured St runs above the unconfined value; the difference is blockage, not solver error.`;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ResultsPanel({
@@ -124,6 +148,8 @@ export function ResultsPanel({
   strouhal,
   geometryType,
   Re,
+  charCells,
+  Ny,
 }: Props) {
   // Last snapshot for live readout
   const last = history.at(-1);
@@ -143,6 +169,8 @@ export function ResultsPanel({
 
   const status = convergenceStatus(history);
   const stReference = literatureSt(geometryType, Re);
+  const blockage = blockageRatio(charCells, Ny);
+  const confinementCaption = blockageCaption(blockage);
 
   // Chart data — last 200 points, rounded for performance
   const chartData = history.slice(-200).map((h) => ({
@@ -296,10 +324,15 @@ export function ResultsPanel({
               </span>
             )}
             {stReference !== null && (
-              <span className="results-stats-label">
-                Circular cylinder, Re {Math.round(Re)}: {fmt(stReference, 4)}{' '}
-                — Williamson (1989) laminar correlation
-              </span>
+              <>
+                <span className="results-stats-label">
+                  Circular cylinder, Re {Math.round(Re)}: {fmt(stReference, 4)}{' '}
+                  — Williamson (1989), unconfined laminar correlation
+                </span>
+                {confinementCaption !== null && (
+                  <span className="results-stats-label">{confinementCaption}</span>
+                )}
+              </>
             )}
           </div>
 

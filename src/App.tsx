@@ -194,6 +194,10 @@ export default function App() {
           // displayed St belongs to the run that produced it.
           geometryType={built?.config.geometry.type ?? null}
           Re={built?.lbm.Re ?? NaN}
+          // Blockage ratio β = D/Ny for the confinement caption on the
+          // literature reference — both taken from the built solver.
+          charCells={built?.charCells ?? null}
+          Ny={built?.Ny ?? null}
         />
 
         {/* Status bar — bottom overlay */}
