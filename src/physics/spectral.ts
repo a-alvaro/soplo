@@ -37,11 +37,37 @@ const MIN_PERIODS = 6;
 
 /**
  * Peak-to-median ratio below which the spectrum is called featureless.
- * A saturated limit cycle gives O(10²); broadband noise gives O(1).
- * First-cut value per spec §1 — a measured prominence within 3× of it is a
- * finding to report, not a threshold to retune.
+ *
+ * Raised from 10 to 100 in rev 2 (spec §Rev 2 b) on measured evidence from the
+ * 1.3a session: white-noise floor 3.36 (SP-7); worst impulsive-start transient
+ * 11–25; a real tone under realistic noise 214 (SP-3); converged limit cycle
+ * O(10⁴). 100 sits ~30× above the noise floor, ~4× above the worst transient,
+ * and well below any real shedding peak, so it rejects the startup box-mode
+ * artefact (F2) without suppressing genuine signal.
  */
-const MIN_PROMINENCE = 10;
+const MIN_PROMINENCE = 100;
+
+/**
+ * Upper bound on the Strouhal number a physical bluff-body wake can shed at,
+ * used to cap the search band in St space (spec §Rev 2 a). Laminar-subcritical
+ * shedding lives well below this: cylinder 0.16–0.21, square ≈ 0.13, Roshko's
+ * universal number 0.16–0.20. Nothing sheds above ≈ 0.35.
+ *
+ * This is what rejects the impulsive-start acoustic box mode (F2), whose
+ * frequency is fixed by the domain, not the body, and lands at St ≫ 0.35 for
+ * app-scale geometries (St ≈ 1.2 at D = 10). A temporal-stability guard would
+ * not catch it: a box mode's frequency does not drift, so successive estimates
+ * agree. The physical bound does.
+ *
+ * Chosen 0.35, not 0.40: the vertical acoustic fundamental sits at
+ * St_ac = c_s·β/(2·u0) = 4.12·β, i.e. 0.41 at β = 10%. A cap of 0.40 would
+ * admit it; 0.35 excludes it down to β ≈ 8.5%. Below that β the fundamental
+ * falls inside the band and the band no longer discriminates — prominence
+ * does. In particular at the β = 5% BM-3 setup the fundamental sits at
+ * St ≈ 0.206, only ≈ 2.7 bins from the shedding peak on the fixture record;
+ * the prominence gate is what separates them there.
+ */
+const ST_MAX = 0.35;
 
 // ─── Radix-2 Cooley–Tukey FFT ─────────────────────────────────────────────────
 
@@ -224,13 +250,22 @@ export class StrouhalEstimator {
     const mag = new Float64Array(half + 1);
     for (let k = 0; k <= half; k++) mag[k] = Math.hypot(re[k], im[k]);
 
-    // Search band, in 1/steps:  [ MIN_PERIODS/(L·cadence) , 1/(2·cadence) ].
-    // Divided through by cadence that is [MIN_PERIODS/L, 1/2] cycles/sample,
-    // i.e. bins [ceil(MIN_PERIODS·nfft/L), nfft/2]. The lower edge is exactly
-    // MIN_PERIODS periods in the record, so the period guard and the DC
-    // exclusion are the same rule.
+    // Search band, in 1/steps:
+    //   lower = MIN_PERIODS/(L·cadence)              — 6 periods in the record
+    //   upper = min( 1/(2·cadence) , ST_MAX·u0/D )   — Nyquist, capped in St
+    // Divided through by cadence and multiplied by nfft to land on bins. The
+    // lower edge folds the period guard and the DC exclusion into one rule;
+    // the St cap on the upper edge is what rejects the acoustic box mode (F2).
     const kLo = Math.max(1, Math.ceil((MIN_PERIODS * nfft) / L));
-    const kHi = half;
+    // ST_MAX·u0/charCells is a frequency in 1/steps; ·cadence → cycles/sample;
+    // ·nfft → bin index. Guard against a degenerate charCells/u0 (→ no cap).
+    const stCapCyclesPerSample =
+      charCells > 0 && Number.isFinite(charCells) ? (ST_MAX * u0 * this.cadence) / charCells : 0.5;
+    const kCap = Math.floor(stCapCyclesPerSample * nfft);
+    const kHi = Math.min(half, kCap);
+    // Empty band: the St cap sits below six resolvable periods. Nothing in
+    // physical shedding range can be resolved with this record — not broken,
+    // still filling.
     if (kLo > kHi) return filling(0);
 
     // Dominant bin over the whole spectrum, DC excluded. If it falls below the

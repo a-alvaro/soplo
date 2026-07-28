@@ -8,6 +8,96 @@
 > Erratum), and authorizes the listed changes and nothing else. CI, the
 > regression tier and benchmark reproducibility are **spec 1.3b**.
 
+## Rev 2 — amendments after the 1.3a execution session
+
+The 1.3a session executed clean (fast tier green, SP-1…SP-8, SP-9 skipped
+pending the fixture) and returned eight findings. Three of them (F4, F5, F6)
+were bugs in this spec, not the implementation. This section records the
+resolutions with their derivations, so the reasoning lives in the repo.
+
+**(a) Search band — physical upper bound in St space.** The method (§1) capped
+the band only at Nyquist. That admits the impulsive-start acoustic box mode
+(F2): at the LOW app setup (D = 10) it sits at St ≈ 1.2 with prominence 11–25,
+so no prominence gate can reject it — it is a genuine spectral peak. The fix is
+to cap the band in Strouhal space:
+
+```
+f ∈ [ MIN_PERIODS/(L·cadence) , min( 1/(2·cadence) , ST_MAX·u0/charCells ) ]
+ST_MAX = 0.35
+```
+
+Rationale: bluff-body shedding is physically bounded — cylinder 0.16–0.21,
+square ≈ 0.13, Roshko's universal number 0.16–0.20; nothing laminar-subcritical
+sheds above ≈ 0.35. The box mode at St 1.2 is rejected by 3.5×. At the BM-3
+setup (D = 30, cap 4096) the band is bins 6–66; shedding sits at bin 31.5, the
+box mode at bin 229 — well outside. **Why 0.35 and not 0.40:** the vertical
+acoustic fundamental sits at `St_ac = c_s·β/(2·u0) = 4.12·β`, i.e. 0.41 at
+β = 10%. A cap of 0.40 would admit it; 0.35 excludes it down to β ≈ 8.5%.
+
+**Known limitation of the cap (records, does not fix):** below β ≈ 8.5% the
+acoustic fundamental falls *inside* the band and the band no longer separates
+it. At the β = 5% BM-3 setup itself, St_ac ≈ 0.206 against shedding at 0.169 —
+only **≈ 3.5 bins apart** on the fixture record (L = 1575). There the
+**prominence gate**, not the band, is what discriminates, which is the second
+reason for amendment (b). When a strong peak sits *above* the cap, the
+estimator reports `filling` (the in-band argmax is weak and lands below the
+lower edge): the tone is correctly rejected but the status word undersells that
+something loud is being excluded. Left as-is; a dedicated `out-of-band` status
+would be scope creep here.
+
+**(b) Prominence threshold — 10 → 100.** Measured evidence from the session:
+white-noise floor 3.36 (SP-7); worst startup transient 11–25; a real tone under
+realistic noise 214 (SP-3); converged limit cycle O(10⁴). The rev-1 value of 10
+sat only 2.98× above the noise floor — a finding by the spec's own "within 3×
+is a finding" rule (F3). 100 sits ~30× above the floor, ~4× above the worst
+transient, and far below any real shedding peak. It is pinned as behaviour by
+SP-12, so a future change fails a test rather than passing silently.
+
+**(c) `filling` vs `band-edge`.** Adopt the implemented definition (F5): global
+argmax (DC excluded) below the lower band edge → `filling`; argmax at the first
+in-band bin → `band-edge`. Consistent and distinguishable; SP-6 covers it.
+
+**(d) Zero-padding rationale.** Corrected (F6): padding is a no-op at a full
+power-of-two buffer and interpolates only for partial fills and the fixture
+(L = 1575 → 2048). Behaviour was always correct; only the spec text was wrong.
+
+**(e) Test frequencies.** SP-2's tone was 0.0137 1/steps (St 5.87), a
+near-Nyquist stress case chosen before the St cap existed — now correctly
+rejected by that cap. Moved inside the band to 4.27e-4 1/steps (St 0.183),
+still non-round in both f and St (bin 8.74, non-integer) so it keeps its sole
+job: catching a factor-`cadence` or 2π error. SP-3…SP-8 already ran at the
+realistic shedding frequency; SP-5 already used 2× that, not 2× SP-2 (F4 was a
+spec-text bug, not an implementation bug — the tests were already right).
+Consequence of the narrowed band: SP-8's overfill case moved from capacity 1024
+to 2048, because at 1024 the ~11-bin band lets a tone's own skirt inflate the
+in-band median and depress prominence below 100 (a synthetic-tone artifact of a
+tiny band, not an app condition — a real cycle at cap 4096 gives O(10⁴)).
+
+**(f) App gate — replaces the "St within 0.157–0.173" gate in the Erratum
+below.** `resolveDomainSize()` fixes Ny = 100 in freeflow and the tunnel mode
+is hidden, so no in-app cylinder can reach β ≤ 5% — the buildable presets give
+β = 10/20/40% (D = 10/20/40 at LOW/MED/HIGH). Comparing a confined app setup
+against an unconfined reference confounds setup with solver — the same argument
+spec 1.2f used to reject a confined BM-2 literature gate. **New app gate
+(plumbing, not physics):** St appears, is finite, and matches a headless run of
+the identical app setup within 1%. That is already satisfied — the 1.3a session
+reproduced both app setups headless and got −0.003% and −0.014% agreement
+against zero-crossings. Physical validation lives in BM-3 and VALIDATION.md.
+Bound on the resolution contribution, so the confinement attribution is not
+hand-waved: the 1/D study gives +1.06% in St from D = 30 to D = 20
+(Δ(1/D) = 0.0167); extrapolated to D = 10 (Δ(1/D) = 0.05) resolution accounts
+for ~3%, against observed deviations of +10% (β = 10%) and +47% (β = 20%).
+Confinement dominates by 3–15×.
+
+**Findings deferred to their proper homes.** F7 (`sideWalls` hardcoded outside
+`CYL`) is fixed in this pass. F8 (dev crash at ~65k steps, before the 81,920
+needed to fill the buffer) needs a production-build run to attribute — assigned
+to the UI/measurement session, not resolved here. The β-annotation of the
+literature reference (F1's honesty half) is a UI change and also belongs to the
+UI/measurement session; this pass covers the estimator core and tests only.
+
+---
+
 ## Erratum — the Phase 1 Definition of Done gate is unsatisfiable
 
 `phase-1-validation.md` currently closes with:

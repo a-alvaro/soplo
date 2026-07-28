@@ -16,7 +16,7 @@ it('SP-7: reports no-peak on broadband noise', () => {
 
   process.stdout.write(
     `SP-7: status ${r.status}, prominence = ${r.prominence.toFixed(2)} ` +
-      `(threshold 10)\n`,
+      `(threshold 100)\n`,
   );
 
   expect(r.status).toBe('no-peak');

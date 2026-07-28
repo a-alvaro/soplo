@@ -28,6 +28,10 @@ export const CYL = {
   cx: 300,
   cy: 299.5,
   u0: 0.07,
+  // Single source of truth for the wall mode: buildCylinderCase and any fixture
+  // metadata derive it from here, so a setup change cannot leave the metadata
+  // silently lying (F7).
+  sideWalls: 'free-slip',
 } as const;
 
 export function buildCylinderCase(Re: number): LBMSolver {
@@ -38,7 +42,7 @@ export function buildCylinderCase(Re: number): LBMSolver {
     Ny: CYL.Ny,
     tau,
     u0: CYL.u0,
-    sideWalls: 'free-slip',
+    sideWalls: CYL.sideWalls,
   });
   solver.addWalls();
   solver.addCircle(CYL.cx, CYL.cy, CYL.D / 2);

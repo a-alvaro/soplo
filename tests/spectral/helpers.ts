@@ -12,11 +12,18 @@ export const U0 = 0.07;
 export const CHAR_CELLS = 30;
 
 /**
- * Frequency used by the synthetic-tone tests, in 1/steps. Deliberately
+ * Frequency used by SP-2's cadence-conversion check, in 1/steps. Deliberately
  * non-round: round frequencies let a missing factor-`cadence` or a stray 2π
  * pass by landing back on a valid bin by coincidence (spec §3, SP-2).
+ *
+ * Rev 2: this was 0.0137 (St 5.87), chosen as a near-Nyquist stress case when
+ * the search band had no physical upper edge. The rev-2 St cap (ST_MAX = 0.35,
+ * spec §Rev 2 a) now correctly rejects anything that fast, so the tone moves
+ * inside the band: 4.27e-4 1/steps is St 0.1830 at the BM-3 setup — non-round
+ * in both f and St (bin 8.74 at cap 1024, not integer), so it still catches a
+ * factor-20 or 2π error, which is all SP-2 exists to do.
  */
-export const TEST_FREQ = 0.0137;
+export const TEST_FREQ = 4.27e-4;
 
 /**
  * A realistic shedding frequency in 1/steps for the official BM-3 setup:

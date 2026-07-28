@@ -39,12 +39,20 @@ it('SP-8: reset() drops the old record entirely', () => {
 
 it('SP-8: the ring buffer keeps only the newest `capacity` samples', () => {
   // Overfill by 3×: the record must be sine B alone, in the right order.
-  const est = new StrouhalEstimator({ capacity: 1024, cadence: CADENCE });
-  pushSignal(est, 3072, tone(FREQ_A, 3));
-  pushSignal(est, 1024, tone(FREQ_B, 1));
+  //
+  // Capacity 2,048 (not 1,024): under the rev-2 St cap the search band is only
+  // ~11 bins wide at cap 1,024, so a pure tone near the upper edge sees its own
+  // skirt inflate the in-band median and prominence falls to ~44 — below the
+  // rev-2 threshold of 100. That is a synthetic-tone artifact of a tiny band,
+  // not an app condition (a real limit cycle at cap 4,096 gives O(10⁴)); 2,048
+  // widens the band enough to measure isolation, which is what SP-8 is for.
+  const CAP = 2048;
+  const est = new StrouhalEstimator({ capacity: CAP, cadence: CADENCE });
+  pushSignal(est, 3 * CAP, tone(FREQ_A, 3));
+  pushSignal(est, CAP, tone(FREQ_B, 1));
 
   const r = est.estimate(CHAR_CELLS, U0);
-  expect(est.length).toBe(1024);
+  expect(est.length).toBe(CAP);
   expect(r.status).toBe('ok');
   expect(Math.abs(relErr(r.frequency!, FREQ_B))).toBeLessThan(0.01);
 });

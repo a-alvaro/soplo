@@ -9,8 +9,9 @@ import {
   tone,
 } from './helpers';
 
-// SP-2 (spec §3): pure sine at a non-round frequency, 0.0137 1/steps.
-// Acceptance: recovered frequency within 1%.
+// SP-2 (spec §3): pure sine at a non-round frequency, 4.27e-4 1/steps
+// (St 0.183, inside the rev-2 St cap). Acceptance: recovered frequency
+// within 1%.
 //
 // The non-roundness is the point. A missing `cadence` division is a factor-20
 // error — 2,000% against a 1% gate, i.e. 20× margin — and a stray 2π is
@@ -18,7 +19,9 @@ import {
 // answer. St is checked alongside f because it is what the user reads.
 
 it('SP-2: recovers a non-round pure tone within 1%', () => {
-  const N = 1024;
+  // 2,048 samples hold ≈ 17 periods at the rev-2 frequency (St 0.183),
+  // comfortably above the 6-period guard.
+  const N = 2048;
   const est = estimatorFrom(N, tone(TEST_FREQ));
   const r = est.estimate(CHAR_CELLS, U0);
 
