@@ -22,6 +22,12 @@ documented in `VALIDATION.md` and enforced by CI.
 
 ## 1.1 — Harness & invariant tests
 
+> **Superseded — historical record.** The suite shipped with INV-6 (mass
+> stationarity) and the BC-1/BC-2 boundary tests added in
+> [`phase-1-2b-boundary-conditions.md`](./phase-1-2b-boundary-conditions.md);
+> the INV-1…5 table below does not list them. Current state: `VALIDATION.md`
+> and `tests/invariants/`.
+
 **Framework:** Vitest, Node environment, no DOM. Tests import from `src/lbm/`
 and `src/physics/` directly (these layers are browser-API-free by rule; if any
 stray browser dependency surfaces, fixing it is in scope).
@@ -49,6 +55,18 @@ stray browser dependency surfaces, fixing it is in scope).
 ---
 
 ## 1.2 — Canonical benchmarks & VALIDATION.md
+
+> **Superseded — historical record.** The setups below (D = 20, Ny = 400,
+> Nx = 720, "free-slip or bounce-back — document which") and the ±6%
+> literature gate on BM-2 are not what the repo runs. The official setups are
+> D = 30 in 1080×600 with free-slip side walls, and BM-2 is a **reporting**
+> benchmark, not literature-gated. See, in order:
+> [`1.2b`](./phase-1-2b-boundary-conditions.md) (Zou–He BCs, MRT ghost rates),
+> [`1.2c`](./phase-1-2c-benchmark-fidelity.md) (free-slip walls, 1/D study),
+> [`1.2d`](./phase-1-2d-benchmark-closure.md) (D = 30 official setups),
+> [`1.2e`](./phase-1-2e-outlet-discriminator.md) (outlet ruled out for BM-2),
+> [`1.2f`](./phase-1-2f-bm2-closure.md) (BM-2 known-limitation closure).
+> Current state: `VALIDATION.md` and the AGENTS.md benchmark table.
 
 All benchmarks run headless in lattice units. **Force normalization in tests
 must reuse the exact same code path as the UI** (Cd = 2Fx/(ρ₀·u₀²·D_cells),
@@ -136,36 +154,20 @@ possibly a spec revision.
 
 ## 1.3 — In-app Strouhal + CI
 
-### Strouhal in the Results panel
+Split into two child specs; this section is an index only.
 
-- **Signal:** dedicated ring buffer of Cl samples for spectral analysis:
-  **2,048 samples at the existing 20-step sampling cadence** (the current
-  500-sample force history stays as-is for the convergence chart). 2,048
-  samples ≈ 24 shedding periods at Re = 100 — enough for a sharp peak.
-- **Method:** remove mean → Hann window → FFT magnitude → take the dominant
-  peak → **parabolic interpolation** of the peak on log-magnitude (raw FFT bin
-  resolution is only ~4% here; interpolation brings frequency error well under
-  1% for a near-monochromatic signal).
-- **Effective sample rate:** f_s = 1/(20 steps). Getting this factor of 20
-  right is the most likely silent bug — add a unit test with a synthetic
-  sine of known frequency injected into the buffer.
-- **Display:** show St only when the flow is classified as *oscillating* and
-  the buffer holds ≥ 6 estimated periods; otherwise show "—". Next to the
-  measured value, when the geometry is a cylinder, show the literature value
-  for the current Re range as context (data for this exists in the
-  interpretation layer's future tables; a minimal hardcoded cylinder table is
-  fine for now).
-- Unit-test the full pipeline against synthetic signals (pure sine, sine +
-  noise, sine + slow drift) with known frequencies; acceptance: recovered
-  frequency within 1%.
-
-### CI (GitHub Actions)
-
-- On every push/PR: typecheck (`tsc --noEmit`), lint if configured,
-  `test:fast`.
-- `test:bench`: on pushes to `main` and manually via `workflow_dispatch`
-  (benchmarks are minutes-long; they gate merges to main, not every WIP push).
-- Badge in README once green.
+- **1.3a — In-app Strouhal (FFT) & the spectral module:**
+  [`phase-1-3a-strouhal-fft.md`](./phase-1-3a-strouhal-fft.md). `src/physics/spectral.ts`
+  (`StrouhalEstimator`, in-module radix-2 FFT), the `tests/spectral/` SP-1…SP-9
+  tier, the committed BM-3 Cl fixture, and the Results-panel display with the
+  Williamson correlation as the built-in-circle reference. It supersedes the
+  ring-buffer sizing given here (4,096, not 2,048 — 2,048 holds only 15.8
+  periods at the D = 30 official setup) and corrects the Phase 1 Definition of
+  Done (see its §Erratum, applied below).
+- **1.3b — CI, regression tier & benchmark reproducibility:** GitHub Actions
+  (typecheck + `test:fast` on push/PR, `test:bench` on `main` and
+  `workflow_dispatch`, README badge), a seeded perturbation RNG, and golden
+  values. Not yet written.
 
 ---
 
@@ -179,6 +181,15 @@ angle-of-attack sweeps; Phase 3 material), skin-friction decomposition,
 ## Definition of done (whole phase)
 
 All invariants and benchmarks green in CI · `VALIDATION.md` committed and
-linked from README · Strouhal visible in-app on a Re = 100 cylinder and
-matching the benchmark measurement within 1% · no solver-core changes beyond
-those explicitly authorized here (perturbation on/off flag, Cl spectral buffer).
+linked from README · Strouhal gated in two parts, per spec 1.3a §Erratum
+(the original single "matches the benchmark within 1%" sentence is
+unsatisfiable — the benchmark runs free-slip walls at D = 30, the app default
+is no-slip at the user's D, and both differences are measured):
+
+1. **Estimator gate** — the FFT estimator and the zero-crossing estimator,
+   applied to *the same recorded Cl trace*, agree within **1%** (SP-9).
+2. **App gate** — St displayed for an in-app cylinder at Re ≈ 100 falls inside
+   the **literature window 0.157–0.173**, not inside ±1% of 0.1691.
+
+· no solver-core changes beyond those explicitly authorized here
+(perturbation on/off flag, Cl spectral buffer).

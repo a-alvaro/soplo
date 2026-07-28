@@ -21,6 +21,7 @@ export default function App() {
     fps,
     umaxLattice,
     forceHistory,
+    strouhal,
     redrawTick,
     requestRedraw,
     run,
@@ -188,6 +189,11 @@ export default function App() {
           open={showResults}
           onClose={() => setShowResults(false)}
           history={forceHistory}
+          strouhal={strouhal}
+          // The built solver's geometry and Re, not the live config: the
+          // displayed St belongs to the run that produced it.
+          geometryType={built?.config.geometry.type ?? null}
+          Re={built?.lbm.Re ?? NaN}
         />
 
         {/* Status bar — bottom overlay */}

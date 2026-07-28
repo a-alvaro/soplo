@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { BLOCKAGE, CYL, buildCylinderCase, printReport } from './helpers';
+import { BLOCKAGE, CYL, buildCylinderCase, printReport, writeTrace } from './helpers';
 
 // BM-3 (docs/specs/phase-1-validation.md §1.2; official setup per
 // docs/specs/phase-1-2d-benchmark-closure.md): circular cylinder at Re = 100
@@ -97,6 +97,25 @@ it('BM-3: cylinder at Re 100 — mean Cd and Strouhal vs literature', { timeout:
         pass: true,
       },
     ],
+  );
+
+  // SP-9's fixture: this window decimated to the 20-step app cadence, plus the
+  // full-rate St measured above as its own reference. No-op unless
+  // SOPLO_WRITE_FIXTURES=1 (spec 1.3a §2).
+  writeTrace(
+    'tests/fixtures/bm3-cl-trace.json',
+    {
+      cadence: 20,
+      D: CYL.D,
+      u0: CYL.u0,
+      Nx: CYL.Nx,
+      Ny: CYL.Ny,
+      sideWalls: 'free-slip',
+      discardSteps: DISCARD,
+      measureSteps: MEASURE,
+      stFullRate: st,
+    },
+    cl,
   );
 
   expect(cdMean, `mean Cd = ${cdMean.toFixed(3)} outside 1.246–1.434`).toBeGreaterThanOrEqual(1.246);

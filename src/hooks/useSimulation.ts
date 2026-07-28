@@ -7,11 +7,26 @@ import {
   type SimConfig,
 } from '../types/SimConfig';
 import { physicsToLBM, type LBMParams } from '../physics/physicsToLBM';
+import { StrouhalEstimator, type StrouhalEstimate } from '../physics/spectral';
 import { naca4 } from '../geometry/naca';
 import { placePoints, rotatePoints } from '../geometry/rasterize';
 
 const STEPS_PER_FRAME = 5;
 const PERTURB_STEPS = 200;
+/**
+ * Minimum wall-clock gap between FFT re-estimates. The Cl buffer gains one
+ * sample per 20 solver steps, so at any realistic in-app rate a faster cadence
+ * would recompute a transform over almost identical data (spec 1.3a §4).
+ */
+const STROUHAL_INTERVAL_MS = 1000;
+
+const NO_STROUHAL: StrouhalEstimate = {
+  st: null,
+  frequency: null,
+  periods: 0,
+  prominence: 0,
+  status: 'filling',
+};
 
 export interface Built {
   solver: LBMSolver;
@@ -161,9 +176,28 @@ export function useSimulation(
   const [umaxLattice, setUmaxLattice] = useState(0);
   const [redrawTick, setRedrawTick] = useState(0);
   const [forceHistory, setForceHistory] = useState<ForceSnapshot[]>([]);
+  const [strouhal, setStrouhal] = useState<StrouhalEstimate>(NO_STROUHAL);
 
   const builtRef = useRef<Built | null>(null);
   builtRef.current = built;
+
+  // Spectral Cl buffer — independent of forceHistory (which the convergence
+  // chart owns and caps at 500 points). Created lazily so React 19 StrictMode's
+  // double render does not allocate two.
+  const strouhalRef = useRef<StrouhalEstimator | null>(null);
+  if (strouhalRef.current === null) strouhalRef.current = new StrouhalEstimator();
+  const lastEstimateRef = useRef(0);
+
+  /**
+   * Drop the spectral record. Called from exactly the paths that clear
+   * forceHistory — which are also the paths that rebuild the solver. A buffer
+   * spanning two configurations would produce a peak belonging to neither.
+   */
+  const resetStrouhal = () => {
+    strouhalRef.current!.reset();
+    lastEstimateRef.current = 0;
+    setStrouhal(NO_STROUHAL);
+  };
 
   const liveLbm = useMemo(() => computeLBM(config), [config]);
   const liveCharCells = useMemo(() => geometryCharCells(config.geometry), [config.geometry]);
@@ -213,6 +247,17 @@ export function useSimulation(
           ];
           return next.slice(-500); // keep last 500 points
         });
+
+        // Cl, never Cd: Cd oscillates at twice the shedding frequency and
+        // would silently double St (spec 1.3a §1, SP-5).
+        strouhalRef.current!.push(forces.Cl);
+        const t = performance.now();
+        if (t - lastEstimateRef.current >= STROUHAL_INTERVAL_MS) {
+          lastEstimateRef.current = t;
+          // charCells is the same quantity the safety indicator feeds
+          // Re_safe — the full diameter/side/chord in cells.
+          setStrouhal(strouhalRef.current!.estimate(b.charCells, b.lbm.u0));
+        }
       }
 
       frames++;
@@ -238,6 +283,7 @@ export function useSimulation(
     setUmaxLattice(0);
     setFps(0);
     setForceHistory([]);
+    resetStrouhal();
     setRedrawTick((t) => t + 1);
     setRunning(true);
   };
@@ -253,6 +299,7 @@ export function useSimulation(
     setUmaxLattice(0);
     setFps(0);
     setForceHistory([]);
+    resetStrouhal();
     setRedrawTick((t) => t + 1);
   };
 
@@ -265,6 +312,7 @@ export function useSimulation(
     fps,
     umaxLattice,
     forceHistory,
+    strouhal,
     redrawTick,
     requestRedraw,
     run,
