@@ -1,6 +1,6 @@
 # Phase 1 Spec — Validation & Test Harness
 
-> Status: **approved draft** · Owner: Alex · Executed by: coding agent, one sub-phase per session.
+> Status: **complete (2026-09-20)** · Owner: Alex · Executed by: coding agent, one sub-phase per session.
 > Prereqs: Phase 0 complete (hook extraction done, repo clean).
 > Rules: `AGENTS.md` applies. This spec authorizes the specific solver-adjacent
 > changes listed below and nothing else.
@@ -16,7 +16,7 @@ documented in `VALIDATION.md` and enforced by CI.
 
 - **1.1** Test harness + invariant tests (fast suite)
 - **1.2** Canonical benchmarks + `VALIDATION.md` (slow suite)
-- **1.3** In-app Strouhal measurement (FFT) + CI
+- **1.3** In-app Strouhal measurement (FFT) + fast CI
 
 ---
 
@@ -132,7 +132,7 @@ with solver.
 - **Acceptance:** mean Cd within **±7%** of 1.34; St within **±5%** of 0.165
   (i.e. 0.157–0.173). St here is measured from Cl zero-crossings of the
   (mean-removed) Cl signal — simple and exact enough for a clean limit cycle;
-  the FFT machinery arrives in 1.3 and must agree with this within 1%.
+  the shared FFT estimator must agree with this within 1% on the same trace.
 - St is dimensionless: compute it entirely in lattice units (f in 1/steps,
   D in cells, u₀ in lu). No unit conversion involved.
 
@@ -160,9 +160,10 @@ possibly a spec revision.
 
 ---
 
-## 1.3 — In-app Strouhal + CI
+## 1.3 — In-app Strouhal + fast CI
 
-Split into two child specs; this section is an index only.
+Implemented through the spectral child spec and the Phase 1 closure spec; this
+section is an index only.
 
 - **1.3a — In-app Strouhal (FFT) & the spectral module:**
   [`phase-1-3a-strouhal-fft.md`](./phase-1-3a-strouhal-fft.md). `src/physics/spectral.ts`
@@ -172,10 +173,12 @@ Split into two child specs; this section is an index only.
   ring-buffer sizing given here (4,096, not 2,048 — 2,048 holds only 15.8
   periods at the D = 30 official setup) and corrects the Phase 1 Definition of
   Done (see its §Erratum, applied below).
-- **1.3b — CI, regression tier & benchmark reproducibility:** GitHub Actions
-  (typecheck + `test:fast` on push/PR, `test:bench` on `main` and
-  `workflow_dispatch`, README badge), a seeded perturbation RNG, and golden
-  values. Not yet written.
+- **Phase 1 closure — repository reconciliation & fast CI:**
+  [`phase-1-closure.md`](./phase-1-closure.md). GitHub Actions runs
+  `test:fast` and the production build on Node 20/24 for pushes and pull
+  requests. The former 1.3b benchmark-golden, guardian and seeded-RNG ideas are
+  explicitly deferred until external contributors or the next solver change;
+  official benchmarks remain the mandatory local ritual for physics changes.
 
 ---
 
@@ -188,11 +191,13 @@ angle-of-attack sweeps; Phase 3 material), skin-friction decomposition,
 
 ## Definition of done (whole phase)
 
-All invariants and benchmarks green in CI · `VALIDATION.md` committed and
-linked from README · Strouhal gated in two deliberately separate parts. The
-original single requirement that the in-app value match BM-3 within 1% is
-void: BM-3 runs free-slip walls at D = 30, while the app runs no-slip at the
-user's D; the wall change alone shifted St by −4.0% in diagnostic 1.2c D-2.
+Fast invariants, boundary contracts and spectral tests green in CI on Node
+20/24 · production build green in CI · official benchmarks validated locally
+and recorded in `VALIDATION.md` · `VALIDATION.md` linked from README · Strouhal
+gated in two deliberately separate parts. The original single requirement that
+the in-app value match BM-3 within 1% is void: BM-3 runs free-slip walls at
+D = 30, while the app runs no-slip at the user's D; the wall change alone
+shifted St by −4.0% in diagnostic 1.2c D-2.
 
 1. **Estimator gate** — the FFT estimator and the zero-crossing estimator,
    applied to *the same recorded Cl trace*, agree within **1%** (SP-9).

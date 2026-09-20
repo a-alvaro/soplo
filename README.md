@@ -1,5 +1,7 @@
 # SOPLO
 
+[![CI](https://github.com/a-alvaro/soplo/actions/workflows/ci.yml/badge.svg)](https://github.com/a-alvaro/soplo/actions/workflows/ci.yml)
+
 **An open-source, browser-based 2D fluid dynamics playground built to help you
 *understand* fluid mechanics — not just watch pretty colors.**
 
@@ -35,15 +37,15 @@ physical honesty, and interpretation.
 - **Not** 3D, not compressible, not turbulence-model-based. It is 2D
   incompressible LBM with an honest Reynolds ceiling (≈ 3,500 with the current
   MRT scheme at typical grid sizes) — and it tells you when you exceed it.
-- **Not** fully validated yet: solver invariants (mass conservation, symmetry,
-  stability, no-slip) are tested and green, and the Re = 100 vortex-shedding
-  benchmark matches literature (Cd, Strouhal). Two canonical cases are
-  currently blocked by an open boundary-condition finding — see
-  [`VALIDATION.md`](./VALIDATION.md) for the honest scoreboard.
+- **Not** engineering-grade CFD. Within its documented scope, however, the
+  solver is validated: Poiseuille and the Re = 100 cylinder pass their
+  literature gates; the Re = 20 cylinder is reported as a converged known
+  limitation with a loose regression bound. See [`VALIDATION.md`](./VALIDATION.md)
+  for the setups, measurements and caveats.
 
 ## Running locally
 
-Requirements: [Node.js](https://nodejs.org/) ≥ 18 and npm.
+Requirements: [Node.js](https://nodejs.org/) ≥ 20 and npm.
 
 ```bash
 git clone https://github.com/a-alvaro/soplo.git
@@ -68,26 +70,30 @@ npm run dev     # Vite dev server, prints a local URL
 
 - MRT collision (d'Humières basis) with tuned ghost-mode relaxation, stable to
   roughly 3–4× the Reynolds number of plain BGK.
-- Half-way bounce-back on arbitrary solids; velocity inlet, zero-gradient outlet.
+- Half-way bounce-back on arbitrary solids; Zou–He velocity inlet and pressure
+  outlet; no-slip side walls by default and free-slip walls for canonical
+  cylinder benchmarks.
 - Physical → lattice unit conversion with τ clamping and a warning system.
 - Momentum-exchange (Ladd) force measurement; live Cd/Cl/L/D with convergence
   classification.
 - Geometries: cylinder, square, parametric NACA 4-digit airfoils, SVG import,
   DXF import.
-- Domain modes: free flow (auto-sized) and wind tunnel (manual dimensions or an
-  SVG cross-section), with blockage warnings.
+- Auto-sized free-flow domain with blockage warnings. Manual/SVG wind-tunnel
+  logic exists in the codebase, but its mode toggle is currently hidden.
 - Smoke-line streamline renderer; field rendering (|u|, ux, uy, vorticity).
 - Safety indicator (Re/τ/Ma), educational popovers, perturbation injection to
   seed vortex streets.
+- Headless invariant and boundary-contract tests, canonical benchmark records,
+  and fast CI on Node 20 and 24.
+- In-app Strouhal measurement from the Cl history, validated against the BM-3
+  solver trace and annotated honestly for confined cylinder setups.
 
 **Not there yet (the roadmap):**
 
-- **Validation** — headless test harness, invariant tests (mass conservation,
-  symmetry, stability), canonical benchmarks vs. literature, in-app Strouhal
-  measurement, CI.
 - **Interpretation layer** — contextual "what am I seeing?" explanations,
-  canvas annotations (stagnation point, wake, separation), glossary; solver
-  moved to a Web Worker.
+  canvas annotations (stagnation point, wake, separation), and a glossary.
+- **Web Worker execution** — move the unchanged, validated solver off the main
+  thread before expanding the reactive interpretation UI.
 - **Guided experiments** — JSON-preset lessons (vortex shedding vs. Re, angle
   of attack on an airfoil, blunt vs. streamlined bodies).
 

@@ -5,7 +5,7 @@
 > without depending on any particular AI assistant, chat history, or session
 > memory. Everything referenced here lives in this repository.
 >
-> Last updated: 2026-07-22 (after Phase 1.2 closure).
+> Last updated: 2026-09-20 (after Phase 1 closure).
 
 ---
 
@@ -18,19 +18,20 @@ Read these three files, in this order. They are the source of truth:
 2. **`VALIDATION.md`** — what has been proven, with numbers and references.
 3. **`AGENTS.md`** — the operating rules and protected invariants.
 
-Then: `npm run test:fast`. If it's green (13 tests), the project is healthy and
-you can start. If it's not, that is the first thing to fix — nothing else
-proceeds on a red suite.
+Then: `npm run test:fast`. If it is green and completes inside the 30-second
+budget, the project is healthy and you can start. If it is not, that is the
+first thing to fix — nothing else proceeds on a red suite.
 
 **State in one paragraph:** 2D LBM (D2Q9, MRT) fluid simulator in the browser,
-React 19 + TypeScript + Vite, Float64 solver on the main thread. Phase 0
-(hygiene) and Phase 1.1–1.2 (invariants + canonical benchmarks) are complete and
-merged to `main`. Poiseuille validates to 0.159% against the analytic solution;
-cylinder at Re = 100 gives Cd = 1.428 and St = 0.1691, both inside literature
-windows; cylinder at Re = 20 is a documented known-limitation (+6.8%, low-Re
+React 19 + TypeScript + Vite, Float64 solver on the main thread. Phase 0 and
+Phase 1 are complete: 29 fast invariant/boundary/spectral tests, production
+build CI on Node 20/24, canonical benchmark records, and in-app Strouhal.
+Poiseuille validates to 0.159% against the analytic solution; cylinder at
+Re = 100 gives Cd = 1.428 and St = 0.1691, both inside literature windows;
+cylinder at Re = 20 is a documented reporting benchmark (+6.8%, low-Re
 confinement). The differentiator — the interpretation layer that explains the
-physics to non-experts — is **not built yet**. That is the point of the next
-phases.
+physics to non-experts — is **not built yet**. Move the unchanged solver to a
+Web Worker before building it.
 
 ---
 
@@ -83,22 +84,22 @@ pointers to the repo plus the protocol.
 
 ## 3. What to do next — ordered
 
-### Step 0 — Reconcile the stale spec *(do this first; ~30 min, docs only)*
+### Step 0 — Reconcile the stale spec — COMPLETE
 
-`docs/specs/phase-1-validation.md` contradicts the repository: its §1.2 still
-says D = 20, Ny = 400, Nx = 720 and a literature-gated BM-2 at ±6%; its §1.1
-lists only INV-1..5. Reality (per `AGENTS.md`, `VALIDATION.md`, and the tests):
+`docs/specs/phase-1-validation.md` contradicted the repository: its §1.2 still
+said D = 20, Ny = 400, Nx = 720 and a literature-gated BM-2 at ±6%; its §1.1
+listed only INV-1..5. Reality (per `AGENTS.md`, `VALIDATION.md`, and the tests):
 D = 30, 1080×600, free-slip side walls, BM-2 as a *reporting* benchmark with a
 1.8–2.4 sanity bound, and INV-6 exists. The closure decisions live in
-`docs/specs/phase-1-2d-benchmark-closure.md` and were never folded back.
+`docs/specs/phase-1-2d-benchmark-closure.md` and had never been folded back.
 
-**Do:** fold the closure decisions into §1.1/§1.2 of the validation spec so it
-matches the repo (this is the file `VALIDATION.md` links to). Also fix its
-Definition of Done, which is unsatisfiable as written — see Step 1.
+**Completed:** the closure decisions are folded into §1.1/§1.2, and the
+Definition of Done now separates estimator validation from app plumbing.
 
-Why first: any agent handed that file as truth will contradict the solver.
+Why it came first: any agent handed that file as truth would contradict the
+solver.
 
-### Step 1 — Spectral module & in-app Strouhal *(the last piece of Phase 1)*
+### Step 1 — Spectral module & in-app Strouhal — COMPLETE
 
 Treat this as the **first brick of the interpretation layer**, not as more
 validation: showing "St = 0.168 (literature 0.164–0.166)" is exactly the kind
@@ -109,34 +110,36 @@ Key decisions already made (do not relitigate):
 - **The old Definition of Done is void.** It required the in-app St to match the
   benchmark within 1%. Impossible: the benchmark runs free-slip walls, the app
   defaults to no-slip, and that shift alone moves St by −4.0% (measured, 1.2c
-  D-2); resolution adds ~1% more. Replace with **two separate gates**:
-  (a) *estimator gate*: FFT vs. zero-crossings **on the same Cl trace**, ≤ 1%;
-  (b) *in-app gate*: displayed St falls inside the literature window
-  (0.157–0.173) for a Re ≈ 100 cylinder.
-- **Cl fixture instead of re-running benchmarks.** Have BM-3 emit its Cl trace
-  decimated at the 20-step cadence and commit it as a test fixture. All spectral
+  D-2); resolution and confinement add further setup-dependent shifts. The two
+  implemented gates are: (a) *estimator gate*: FFT vs. zero-crossings **on the
+  same Cl trace**, ≤ 1%; (b) *app plumbing gate*: displayed St is finite and
+  matches a headless run of the identical app setup within 1%. Physical
+  validation against 0.157–0.173 lives in BM-3.
+- **Cl fixture instead of re-running benchmarks.** BM-3 emits its Cl trace
+  decimated at the 20-step cadence as a committed test fixture. All spectral
   validation then lives in `test:fast` against real solver signal, at zero
   runtime cost. Derived numbers: BM-3's measurement window (31,500 steps) yields
-  1,575 samples; the largest usable power of two is **N = 1,024** (≈ 8.1 shedding
-  periods, above the 6-period guard). Bin width is 12.4% of f_shed, but Hann
-  window + parabolic interpolation on log-magnitude gives ≈ 0.25% error on a
-  near-pure tone — 4× margin on the 1% gate. Record in the fixture the solver
-  SHA that produced it, so it is regenerated when the solver legitimately changes.
+  1,575 samples (≈ 12.4 shedding periods), all used and zero-padded to 2,048 for
+  the FFT. The unpadded bin width is ≈ 8.0% of f_shed; Hann window + parabolic
+  interpolation on log-magnitude predicts ≈ 0.16% error, and SP-9 measures
+  0.046% against zero-crossings — ample margin on the 1% gate. The fixture
+  records the solver SHA that produced it, so it is regenerated when the solver
+  legitimately changes.
 - **In-app buffer: 4,096 samples, not 2,048.** Periods held = 473/D at N = 2,048,
   so bodies above D ≈ 79 cells would fall under the 6-period guard and display
   "—". N = 4,096 raises that to D ≈ 158 and costs 32 KB.
-- **Seeded RNG in `injectPerturbation` is authorized** as an *optional* `seed`
-  parameter whose default preserves current (random) behavior. Tests seed it;
-  the app is unchanged. This makes BM-3 bit-reproducible on a given machine.
-- Also required, none of it optional: **flush the spectral buffer** when Re, u₀
-  or geometry changes (otherwise the FFT mixes regimes); **peak-validity guard**
-  (peak/median ratio ≥ ~10, excluding DC and the first 2–3 bins after Hann);
-  the signal is **Cl, not Cd** (Cd oscillates at twice the frequency — test it);
-  synthetic test tones at a **non-round frequency** (e.g. 0.0137 steps⁻¹) so a
-  stray factor of 20 or 2π cannot pass by coincidence; and widen `test:fast` in
-  `package.json`, which currently points only at `tests/invariants`.
+- **Seeded RNG is deliberately deferred.** The committed BM-3 fixture carries
+  its own full-rate reference, and the benchmark gates statistics rather than
+  an exact transient. Add optional seeding with the benchmark-regression work
+  when a legitimate solver change or external contributors justify it.
+- Implemented safeguards, none optional: **flush the spectral buffer** when
+  Re, u₀ or geometry changes (otherwise the FFT mixes regimes); six-period
+  minimum; `ST_MAX = 0.35`; **peak/median prominence ≥ 100**; the signal is
+  **Cl, not Cd** (Cd oscillates at twice the frequency — test it); synthetic
+  test tones at a **non-round frequency** so a stray factor of 20 or 2π cannot
+  pass by coincidence; and include `tests/spectral` in `test:fast`.
 
-### Step 2 — Move the solver to a Web Worker *(start of Phase 2)*
+### Step 2 — Move the solver to a Web Worker — NEXT
 
 Do this **before** building interpretation UI, not after. The solver currently
 runs on the main thread; reactive panels and canvas annotations will compete
@@ -167,17 +170,19 @@ blunt vs. streamlined body.
 
 ### Deferred on purpose
 
-- **CI tiers, regression goldens, guardian job** (was Phase 1.3b). The guardian
+- **Benchmark regression goldens, guardian job and seeded perturbation** (the
+  remaining former Phase 1.3b ideas). Fast CI now runs `test:fast` and the
+  production build on Node 20/24. The guardian
   job — fail a PR that touches `src/lbm/` or `src/physics/` without evidence of
   a bench run — is worth doing when there are external contributors or the next
   time the solver is modified. Note for whenever it happens: benchmarks are
   bit-reproducible *on the same machine*; across architectures, floating-point
   differences accumulate over 150k steps, so goldens need tolerances, not exact
   equality.
-- **Official benchmarks in CI: no.** They take hours and, without RNG, reproduce
-  the identical number every time — hours of compute for zero information. Run
-  them locally as a ritual, plus `workflow_dispatch` and release tags, recording
-  SHA, Node version and wall time in `VALIDATION.md`.
+- **Official benchmarks in automatic CI: no.** They take hours and are required
+  locally whenever solver or physics code changes, recording SHA, Node version
+  and wall time in `VALIDATION.md`. Add manual/release automation only when the
+  benchmark-regression work above is justified.
 
 ---
 
@@ -201,7 +206,8 @@ blunt vs. streamlined body.
 
 ## 5. Calibration note for the maintainer
 
-Phase 1 was planned as three sub-phases and ran to nine. The work was real —
+Phase 1 is formally closed. It was planned as three sub-phases and ran to nine.
+The work was real —
 it found and fixed a genuine product bug (an over-constrained inlet that slowly
 starved the flow, invisible to the naked eye) and produced a refinement study
 whose 1/D extrapolation lands exactly on the literature value. But the cost is
@@ -209,7 +215,7 @@ that **the thing that makes SOPLO different from the dozens of LBM demos on
 GitHub still does not exist.**
 
 The validation is now good enough. Resist the pull of more rigor for its own
-sake — the blockage sweep, the confined benchmark, the CI machinery are all
-defensible and all deferrable. Build the interpretation layer next. A repo with
-flawless validation and no teaching layer is one more validated solver; with
-both, it is SOPLO.
+sake — the blockage sweep, the confined benchmark and the deferred benchmark-
+regression machinery are all defensible and all deferrable. Build the
+interpretation layer next. A repo with flawless validation and no teaching
+layer is one more validated solver; with both, it is SOPLO.

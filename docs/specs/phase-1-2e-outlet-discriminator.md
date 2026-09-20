@@ -1,6 +1,6 @@
 # Phase 1.2e Spec — BM-2 outlet-distance discriminator (D-4)
 
-> Status: **approved draft** · Owner: Alex · Executed by: coding agent.
+> Status: **complete (2026-07-19)** · Owner: Alex · Executed by: coding agent.
 > Prereq: 1.2d stop-and-report (BM-2 at 2.190, +6.8%, mechanism attributed to
 > the reflective pressure outlet). **Zero solver changes authorized** — this
 > spec acts on domain geometry only.
