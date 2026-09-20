@@ -1,6 +1,6 @@
 # Phase 1.2b Spec — Well-posed inlet/outlet boundary conditions
 
-> Status: **approved rev 3** · Owner: Alex · Executed by: coding agent.
+> Status: **complete, rev 3 (2026-07-16)** · Owner: Alex · Executed by: coding agent.
 > Rev 2 added: outlet formula erratum fix, authorization of the MRT ghost-rate
 > change (coupled-system finding), Re-ceiling smoke check.
 > Rev 3 adds: INV-6 mean-offset gate corrected to a physics-referenced

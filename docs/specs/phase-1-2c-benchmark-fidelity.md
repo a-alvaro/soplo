@@ -1,6 +1,6 @@
 # Phase 1.2c Spec — Benchmark fidelity: free-slip side walls & discriminating diagnostics
 
-> Status: **approved draft** · Owner: Alex · Executed by: coding agent.
+> Status: **complete (2026-07-17)** · Owner: Alex · Executed by: coding agent.
 > Prereq: 1.2b branch state (BM-1 PASS, BM-2/BM-3 open finding, VALIDATION.md
 > scoreboard of 2026-07-16). Continues on branch `phase-1-2b-boundary-conditions`
 > or a child branch — implementer's choice, documented.

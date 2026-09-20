@@ -1,12 +1,13 @@
 # Phase 1.3a Spec — In-app Strouhal (FFT) & the spectral module
 
-> Status: **approved draft** · Owner: Alex · Executed by: coding agent, one session.
+> Status: **complete (2026-07-28)** · Owner: Alex · Executed by: coding agent, one session.
 > Prereq: Phase 1.2 chain merged to main (BM-1 ✅, BM-3 ✅, BM-2 reported /
 > known-limitation; spec 1.2f).
 > Rules: `AGENTS.md` applies. This spec supersedes the Strouhal half of
 > `phase-1-validation.md` §1.3, corrects the Phase 1 Definition of Done (see
-> Erratum), and authorizes the listed changes and nothing else. CI, the
-> regression tier and benchmark reproducibility are **spec 1.3b**.
+> Erratum), and authorizes the listed changes and nothing else. Fast CI was
+> completed by [`phase-1-closure.md`](./phase-1-closure.md); regression goldens,
+> a benchmark guardian and seeded perturbation are explicitly deferred there.
 
 ## Rev 2 — amendments after the 1.3a execution session
 
@@ -339,9 +340,9 @@ SP-9(a) vs SP-9(b) also validates the decimation itself: the full-rate estimate
 sees 20× more samples per period, so agreement between them means the 20-step
 cadence does not bias the measurement.
 
-`package.json`: `test:fast` currently runs `tests/invariants` only and must be
-widened to include `tests/spectral`. Total fast-tier target stays **< 30 s**
-(current: 13 tests in ~5 s; SP-1…SP-9 are sub-second each).
+At authoring time, `package.json` ran only `tests/invariants`; implementation
+widened `test:fast` to include `tests/spectral`. The fast-tier target remains
+**< 30 s** (Phase 1 closure baseline: 29 tests across 20 files in ~25 s).
 
 ---
 
@@ -414,8 +415,8 @@ rewrite.
 
 Any change to `src/lbm/` (rule 1). Any change to BM-1/BM-2/BM-3 setups, gates
 or measurement windows. Any change to the 20-step sampling cadence or to the
-500-point `forceHistory`. Seeding the perturbation RNG (spec 1.3b). CI
-workflows, the regression tier and golden values (spec 1.3b).
+500-point `forceHistory`. Seeding the perturbation RNG, a benchmark guardian
+and regression goldens (deferred by the Phase 1 closure spec).
 
 ## Discrepancy protocol
 

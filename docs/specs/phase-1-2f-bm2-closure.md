@@ -1,6 +1,6 @@
 # Phase 1.2f Spec — BM-2 closure & Phase 1.2 wrap-up
 
-> Status: **approved draft** · Owner: Alex · Executed by: coding agent.
+> Status: **complete (2026-07-21)** · Owner: Alex · Executed by: coding agent.
 > Prereq: 1.2e stop-and-report (BM-2 residual attributed to low-Re confinement;
 > outlet and resolution ruled out by D-4 and the 1/D study). This spec closes
 > Phase 1.2. **Zero solver changes.**

@@ -67,34 +67,45 @@ The differentiators to protect and deepen, in priority order:
 - **The maker/engineer** doing a quick qualitative sanity check before firing up
   real CFD.
 
-## 4. Current state (July 2026)
+## 4. Current state (September 2026)
 
 **Stack:** React 19 + TypeScript + Vite + Tailwind 4, recharts for plots.
 Custom D2Q9 **MRT** LBM solver in plain TypeScript, Canvas2D rendering.
 
 **Implemented and working:**
 - MRT collision (d'Humières basis) with tuned ghost-mode relaxation (stable to ~3–4× the Re of BGK).
-- Half-way bounce-back on arbitrary solids; velocity inlet, zero-gradient outlet.
+- Half-way bounce-back on arbitrary solids; Zou–He velocity inlet (free
+  density) and pressure outlet (ρ = 1); no-slip side walls by default and a
+  benchmark-only free-slip mode.
 - Physical→lattice unit conversion layer with τ clamping and warning system.
 - Momentum-exchange (Ladd) force measurement, correctly timed post-collision/pre-stream; live Cd/Cl/L/D with convergence classification (converging / oscillating / unstable).
 - Geometries: cylinder, square, NACA 4-digit (parametric), SVG import, DXF import.
-- Domain modes: free flow (auto-sized) and wind tunnel (manual dims or SVG cross-section), with blockage warnings.
+- Auto-sized free-flow domain with blockage warnings. Manual/SVG wind-tunnel
+  logic exists but its mode toggle is currently hidden.
 - Smoke-line streamline renderer; viridis-style field rendering (|u|, ux, uy, vorticity).
 - Safety indicator (Re/τ/Ma), InfoTip educational popovers, perturbation injection to seed vortex streets.
+- Headless Vitest coverage for solver invariants, boundary contracts and the
+  spectral estimator; `test:fast` currently runs 29 tests across 20 files.
+- Canonical validation recorded in `VALIDATION.md`: BM-1 and BM-3 pass their
+  literature gates; BM-2 is a converged reporting benchmark with a documented
+  low-Re confinement limitation.
+- In-app Strouhal measurement from Cl, sharing the validated spectral path and
+  annotating the unconfined literature reference when the app setup is confined.
+- Fast GitHub Actions CI on Node 20 and 24 (`test:fast` + production build).
+- Repository identity and hygiene: README, MIT license, agent rules, clean
+  tracked tree and simulation loop extracted to `useSimulation`.
 
 **Missing (the reason for the roadmap):**
-- Zero automated tests; no validation against canonical benchmarks documented.
-- No README, LICENSE, CI, or contribution docs.
 - Solver runs on the main thread (no Web Worker yet).
 - Interpretation layer is embryonic (regime detection exists; explanation does not).
-- Repo hygiene issues (debug logging, editor artifacts, stray build files).
+- Guided experiments and teacher-mode lesson flows do not exist yet.
 
 ## 5. Roadmap
 
 Each phase must leave the repository **more publishable than the previous one**.
 No phase is "done" with loose ends dangling into the next.
 
-### Phase 0 — Hygiene & identity
+### Phase 0 — Hygiene & identity — COMPLETE
 Clean repo (remove debug `console.log` in `computeForces`, `.DS_Store`,
 `tsconfig.tsbuildinfo`, stray `.claude/` worktrees; proper `.gitignore`).
 Add MIT `LICENSE`, honest `README.md` with a GIF, this document, `AGENTS.md`.
@@ -102,20 +113,23 @@ Decide final public repo strategy (keep history vs. fresh public repo with the
 current code as a curated initial commit). Extract simulation loop from
 `App.tsx` into a hook as the first, small structural refactor.
 
-### Phase 1 — Validation (the credential)
+### Phase 1 — Validation (the credential) — COMPLETE
 Headless test harness (Vitest) exercising the solver without the UI:
 - **Invariant tests:** mass conservation, symmetric-flow symmetry, equilibrium stability, no-NaN under long runs at τ limits.
 - **Canonical benchmarks:** Poiseuille profile vs. analytic solution; cylinder at Re = 20 (steady, Cd ≈ 2.0) and Re = 100 (Cd ≈ 1.35, Strouhal ≈ 0.165).
 - `VALIDATION.md` with a results-vs-literature table.
 - **In-app Strouhal measurement** (FFT over the Cl history) surfaced in the Results panel next to the literature value — instant credibility, and didactic in itself.
-- CI (GitHub Actions): typecheck + tests on every push.
+- CI (GitHub Actions): typecheck/build + fast tests on every push and pull
+  request. The multi-hour canonical benchmarks remain a mandatory local ritual
+  for solver/physics changes rather than an automatic per-push job.
 
-### Phase 2 — Interpretation layer (the differentiator)
+### Phase 2 — Interpretation layer (the differentiator) — NEXT
 Build on the existing regime detection:
+- Move the solver to a **Web Worker** first (interpretation adds UI work; the
+  main thread must be free).
 - Contextual "what am I seeing?" explanations driven by Re + convergence state (attached laminar flow → separation → von Kármán street → beyond-validity).
 - Canvas annotations: stagnation point, wake region, separation zone.
 - Plain-language glossary; expand InfoTips.
-- Move the solver to a **Web Worker** in this phase (interpretation adds UI work; the main thread must be free).
 
 ### Phase 3 — Guided experiments (the teacher mode)
 Experiments defined as JSON presets + guided steps + observation prompts. Launch set:
@@ -191,6 +205,8 @@ Shareable experiment/config URLs if cheap.
 | 2026-07-28 | **App-gate for in-app Strouhal is plumbing, not physics**; spec 1.3a rev 2(f) | The original gate (in-app St inside the literature window 0.157–0.173) is unsatisfiable: `resolveDomainSize` fixes Ny = 100 and tunnel mode is hidden, so no buildable cylinder reaches β ≤ 5% — every case legitimately sits above the window (0.1812 at β = 10%). Same argument as BM-2's confined gate (1.2f). New gate: St appears, is finite, matches a headless run of the same setup ≤ 1%; physical validation lives in BM-3 |
 | 2026-07-28 | **Strouhal search band capped in St space (ST_MAX = 0.35), prominence threshold 10 → 100**; spec 1.3a rev 2 | The impulsive-start acoustic box mode is a genuine spectral peak at St ≈ 1.2, so no prominence gate rejects it; a physical St cap does (bluff-body shedding never exceeds ~0.35). Below β ≈ 8.5% the acoustic fundamental enters the band and prominence discriminates instead — hence the raised threshold, measured ~45× above the noise floor; accept-side margin is a thinner 2.8× (a recorded finding) |
 | 2026-07-28 | **Literature reference annotated with blockage β when confined**; spec 1.3a rev 3 | Showing Williamson's unconfined value beside a confined in-app measurement reads as solver error when the gap is the user's β (honesty, AGENTS.md rule 2). The reference is annotated, never hidden. F8 dev-crash confirmed a React dev-instrumentation artifact — production build ran past a full buffer (107k steps), not a merge blocker |
+| 2026-09-20 | **Phase 1 closed; fast CI added; official benchmarks remain local** | `test:fast` and the production build run on Node 20/24 for pushes and pull requests. BM-1/BM-2/BM-3 remain the validated local ritual for solver/physics changes because automatic multi-hour reruns add cost without new information. Regression goldens, a benchmark guardian and optional seeded perturbation are deferred until external contributors or the next legitimate solver change |
+| 2026-09-20 | **Web Worker is the next implementation phase; bundle size re-measured there** | The validated solver remains unchanged and moves off the main thread before interpretation UI expands. The current production build is valid but warns about a ~608 kB minified JS chunk; Worker extraction changes chunk topology, so size is measured again before separate code-splitting work is considered |
 
 ## 7. Reference projects
 

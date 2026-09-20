@@ -1,6 +1,6 @@
 # Phase 1.2d Spec — Benchmark closure: official setups & BM-2 resolution discriminator
 
-> Status: **approved draft** · Owner: Alex · Executed by: coding agent.
+> Status: **complete (2026-07-17)** · Owner: Alex · Executed by: coding agent.
 > Prereq: 1.2c complete (branch `phase-1-2c-benchmark-fidelity`): free-slip mode
 > + BC-2 green, D-1/D-2/D-3 diagnostics documented, decision-tree endpoint
 > reached. This spec records the maintainer's endpoint decisions and authorizes
