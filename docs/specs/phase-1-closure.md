@@ -7,6 +7,29 @@
 > Rules: `AGENTS.md` and the discrepancy protocol apply. This is a closure
 > pass: no solver, physics, benchmark, acceptance-window or test changes.
 
+## Rev 1 — Node 20 fast-tier concurrency finding
+
+Closure verification found a runner-level discrepancy after the clean-install
+path was already green functionally. On Node 24, `test:fast` passed 29/29 in
+25.04 s. On Node 20.20.2, two default-worker runs passed 29/29 but took 30.16 s
+and 30.20 s, narrowly missing the existing < 30 s budget. Verbose profiling
+identified INV-6 as the critical path (~31 s while competing with all other
+files); no assertion, step count or acceptance gate failed.
+
+Registered concurrency discriminator on the same machine and Node version:
+
+| Vitest maximum workers | Duration | Result |
+|---|---:|---|
+| default | 30.16–30.20 s | over budget |
+| 2 | 29.82 s | inside, thin margin |
+| **4** | **29.62 s** | best measured |
+| 6 | 30.31 s | over budget |
+
+**Decision:** explicitly cap `test:fast` at four workers. This changes only test
+scheduling; INV-6 still runs 50,000 steps and every invariant/spectral gate is
+unchanged. Rev 1 authorizes that single `package.json` script edit as an
+exception to the original closure scope. The < 30 s target is not loosened.
+
 ## Goal
 
 Close Phase 0 and Phase 1 without leaving contradictory sources of truth or an
