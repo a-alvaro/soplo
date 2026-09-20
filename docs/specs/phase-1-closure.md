@@ -1,6 +1,6 @@
 # Phase 1 Closure Spec — Repository reconciliation and fast CI
 
-> Status: **approved** · Owner: Alex · Executed by: coding agent.
+> Status: **complete** · Owner: Alex · Executed by: coding agent.
 > Date: 2026-09-20.
 > Prereq: Phase 1.1–1.2 validated; Phase 1.3a implemented; parent-spec
 > reconciliation committed on `phase-1-3-0-spec-reconciliation`.
@@ -92,6 +92,26 @@ Phase 1 work.
 5. README, project context, plan and parent spec agree that Phase 1 is closed,
    BM-2 is reported rather than literature-gated, and the Web Worker is next.
 6. `git diff --check` passes and the worktree is clean after granular commits.
+
+## Closure verification (2026-09-20)
+
+- Clean install: `npm ci` completed successfully (151 packages).
+- Node 24.15.0: `test:fast` passed **29/29** across 20 files in **24.53 s**
+  with the Rev 1 worker cap; production build passed.
+- Node 20.20.2: `test:fast` passed **29/29** across 20 files in **29.72 s**
+  with the Rev 1 worker cap; production build passed.
+- Production output: 703 modules transformed; main JS chunk 608.31 kB
+  minified / 187.86 kB gzip. The recorded size warning remains non-blocking and
+  is re-measured after Worker extraction.
+- Browser smoke against `vite preview`: initial interactive state loaded;
+  simulation advanced to step 3,570 with finite Cd/Cl and oscillating status;
+  pause succeeded; reset returned the solver to step 0.
+- Official benchmarks were not re-run: this pass changed no solver, physics,
+  benchmark, fixture or acceptance code. Their current evidence remains the
+  validated record in `VALIDATION.md`.
+
+All acceptance criteria are satisfied. Phase 0 and Phase 1 are closed; the Web
+Worker refactor is the next implementation phase.
 
 ## Discrepancy protocol
 
