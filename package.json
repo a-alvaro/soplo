@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:fast": "NODE_OPTIONS='--import tsx' vitest run tests/invariants tests/spectral",
+    "test:fast": "NODE_OPTIONS='--import tsx' vitest run --maxWorkers=4 tests/invariants tests/spectral",
     "test:bench": "NODE_OPTIONS='--import tsx' vitest run --no-file-parallelism tests/benchmarks"
   },
   "dependencies": {
