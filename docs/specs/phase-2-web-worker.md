@@ -367,3 +367,23 @@ median and the campaign supports that result across repetitions. If no
 candidate satisfies the existing gate reliably, retain full coverage and derive
 an explicit replacement budget from the observed distribution rather than
 rerunning until a favourable outlier appears.
+
+### F1 campaign result
+
+All nine runs passed 21/21 files and 38/38 tests on Node 20:
+
+| `maxWorkers` | Run 1 | Run 2 | Run 3 | Median | Range | Runs < 30 s |
+|---:|---:|---:|---:|---:|---:|---:|
+| 3 | 32.49 s | 29.58 s | 29.66 s | 29.66 s | 2.91 s | 2/3 |
+| 4 | 29.88 s | 29.83 s | 29.80 s | 29.83 s | 0.08 s | 3/3 |
+| 5 | 30.01 s | 30.01 s | 30.10 s | 30.01 s | 0.09 s | 0/3 |
+
+The prediction that four workers would remain fastest was directionally
+correct against the stable candidates, although its measured median was lower
+than the predicted 30.1–30.3 seconds. Three workers produced one large outlier;
+five workers was consistent but missed the strict gate on every run.
+
+**Decision:** retain the existing `--maxWorkers=4` configuration. It satisfies
+the registered rule with a sub-30 median, all three repetitions below 30
+seconds and the narrowest passing range. No package script, test coverage,
+solver value or acceptance threshold changes are required.
