@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { LBMSolver } from '../lbm/LBMSolver';
 import type { ViewField } from '../types/SimConfig';
 import { divergent, viridis } from './colormaps';
 
 interface Props {
-  solver: LBMSolver;
+  Nx: number;
+  Ny: number;
+  ux: Float64Array;
+  uy: Float64Array;
+  solid: Uint8Array;
   width: number;
   height: number;
   /** Reference scale for the active view. Always > 0. */
@@ -21,19 +24,30 @@ const SOLID_RGB: [number, number, number] = [30, 30, 30];
  * (1 px per cell), then blit it scaled with bilinear smoothing onto the
  * visible canvas.
  */
-export function Canvas2D({ solver, width, height, vmax, view, redrawTick }: Props) {
+export function Canvas2D({
+  Nx,
+  Ny,
+  ux,
+  uy,
+  solid,
+  width,
+  height,
+  vmax,
+  view,
+  redrawTick,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const offscreen = useMemo(() => {
     const c = document.createElement('canvas');
-    c.width = solver.Nx;
-    c.height = solver.Ny;
+    c.width = Nx;
+    c.height = Ny;
     return c;
-  }, [solver.Nx, solver.Ny]);
+  }, [Nx, Ny]);
 
   const offscreenImage = useMemo(
-    () => new ImageData(solver.Nx, solver.Ny),
-    [solver.Nx, solver.Ny],
+    () => new ImageData(Nx, Ny),
+    [Nx, Ny],
   );
 
   useEffect(() => {
@@ -43,7 +57,6 @@ export function Canvas2D({ solver, width, height, vmax, view, redrawTick }: Prop
     const offCtx = offscreen.getContext('2d');
     if (!ctx || !offCtx) return;
 
-    const { Nx, Ny, ux, uy, solid } = solver;
     const data = offscreenImage.data;
 
     const useDivergent = view === 'ux' || view === 'uy' || view === 'vorticity';
@@ -108,7 +121,7 @@ export function Canvas2D({ solver, width, height, vmax, view, redrawTick }: Prop
     ctx.imageSmoothingQuality = 'high';
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(offscreen, 0, 0, Nx, Ny, 0, 0, width, height);
-  }, [solver, offscreen, offscreenImage, width, height, vmax, view, redrawTick]);
+  }, [Nx, Ny, ux, uy, solid, offscreen, offscreenImage, width, height, vmax, view, redrawTick]);
 
   return (
     <canvas

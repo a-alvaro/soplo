@@ -1,172 +1,42 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { LBMSolver } from '../lbm/LBMSolver';
-import type { ForceSnapshot } from '../components/ResultsPanel';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  geometryCharCells,
-  RESOLUTION_CELLS,
-  type SimConfig,
-} from '../types/SimConfig';
-import { physicsToLBM, type LBMParams } from '../physics/physicsToLBM';
-import { StrouhalEstimator, type StrouhalEstimate } from '../physics/spectral';
-import { naca4 } from '../geometry/naca';
-import { placePoints, rotatePoints } from '../geometry/rasterize';
+  computeLBM,
+  resolveDomainSize,
+  validateSimulationConfig,
+} from '../simulation/buildSimulation';
+import { geometryCharCells, type SimConfig } from '../types/SimConfig';
+import {
+  SimulationWorkerClient,
+  type VisibilitySource,
+  type WorkerPort,
+} from '../workers/SimulationWorkerClient';
+import type {
+  ForceSample,
+  FramePayload,
+  RunMetadata,
+  WorkerToMainMessage,
+} from '../workers/simulationProtocol';
+import { NO_STROUHAL } from '../workers/simulationProtocol';
 
-const STEPS_PER_FRAME = 5;
-const PERTURB_STEPS = 200;
-/**
- * Minimum wall-clock gap between FFT re-estimates. The Cl buffer gains one
- * sample per 20 solver steps, so at any realistic in-app rate a faster cadence
- * would recompute a transform over almost identical data (spec 1.3a §4).
- */
-const STROUHAL_INTERVAL_MS = 1000;
+export { computeLBM, resolveDomainSize } from '../simulation/buildSimulation';
 
-const NO_STROUHAL: StrouhalEstimate = {
-  st: null,
-  frequency: null,
-  periods: 0,
-  prominence: 0,
-  status: 'filling',
-};
+const FRAME_INTERVAL_MS = 1000 / 30;
+const FORCE_HISTORY_LIMIT = 500;
 
-export interface Built {
-  solver: LBMSolver;
-  Nx: number;
-  Ny: number;
-  charCells: number;
-  lbm: LBMParams;
-  config: SimConfig;
+export interface Built extends RunMetadata {
+  ux: Float64Array;
+  uy: Float64Array;
+  solid: Uint8Array;
 }
 
-function dxMeters(cfg: SimConfig): number {
-  const D = RESOLUTION_CELLS[cfg.geometry.resolution];
-  if (cfg.geometry.type === 'none' || D <= 0) {
-    return cfg.domain.widthM > 0 ? cfg.domain.widthM / 400 : 0.001;
-  }
-  return cfg.geometry.charLengthM / D;
+interface FpsCounter {
+  frames: number;
+  startedAt: number;
 }
 
-export function resolveDomainSize(cfg: SimConfig): { Nx: number; Ny: number } {
-  if (cfg.domain.mode === 'windtunnel') {
-    const dx = dxMeters(cfg);
-    return {
-      Nx: Math.max(50, Math.round(cfg.domain.widthM / dx)),
-      Ny: Math.max(20, Math.round(cfg.domain.heightM / dx)),
-    };
-  }
-  if (cfg.geometry.type === 'naca') {
-    return { Nx: 200, Ny: 100 };
-  }
-  const D = RESOLUTION_CELLS[cfg.geometry.resolution];
-  const geomW = (cfg.geometry.type === 'svg' || cfg.geometry.type === 'dxf') ? 80 : D;
-  return {
-    Nx: Math.max(200, Math.round(geomW * 20)),
-    Ny: 100,
-  };
-}
-
-export function computeLBM(cfg: SimConfig): LBMParams {
-  return physicsToLBM({
-    speedMs: cfg.boundaries.speedMs,
-    charLengthM: cfg.geometry.charLengthM,
-    nuPhysical: cfg.fluid.nuPhysical,
-    gridCells: geometryCharCells(cfg.geometry),
-  });
-}
-
-function buildSolverFromConfig(
-  cfg: SimConfig,
-  svgMask: Uint8Array | null,
-  tunnelMask: Uint8Array | null,
-): Built {
-  const { Nx, Ny } = resolveDomainSize(cfg);
-  const lbm = computeLBM(cfg);
-  const D = RESOLUTION_CELLS[cfg.geometry.resolution];
-
-  const solver = new LBMSolver({ Nx, Ny, tau: lbm.tau, u0: lbm.u0 });
-
-  const useTunnelSvg =
-    cfg.domain.mode === 'windtunnel' &&
-    cfg.domain.tunnelMode === 'svg' &&
-    tunnelMask &&
-    tunnelMask.length === Nx * Ny;
-
-  if (useTunnelSvg) {
-    const inverted = new Uint8Array(Nx * Ny);
-    for (let i = 0; i < inverted.length; i++) inverted[i] = tunnelMask[i] ? 0 : 1;
-    solver.addMask(inverted, 1); // tunnel walls = solid=1, excluded from force calc
-  } else {
-    solver.addWalls();
-  }
-
-  const cx = Math.floor(Nx / 4);
-  const cy = Math.floor(Ny / 2) + 3;
-
-  switch (cfg.geometry.type) {
-    case 'cylinder':
-      solver.addCircle(cx, cy, D / 2);
-      break;
-    case 'square':
-      solver.addSquare(cx, cy, D);
-      break;
-    case 'naca': {
-      const code = cfg.geometry.nacaCode ?? '0012';
-      const aoa = ((cfg.geometry.angleOfAttack ?? 0) * Math.PI) / 180;
-      let pts = naca4(code);
-      pts = placePoints(pts, D, cx, cy);
-      pts = rotatePoints(pts, -aoa, cx, cy);
-      solver.addPolygon(pts);
-      break;
-    }
-    case 'svg':
-    case 'dxf':
-      if (svgMask && svgMask.length === Nx * Ny) solver.addMask(svgMask, 2); // object = solid=2
-      break;
-    case 'none':
-      break;
-  }
-
-  solver.initialise();
-  return { solver, Nx, Ny, charCells: geometryCharCells(cfg.geometry), lbm, config: cfg };
-}
-
-function validate(
-  cfg: SimConfig,
-  svgMask: Uint8Array | null,
-  tunnelMask: Uint8Array | null,
-): string | null {
-  if (cfg.boundaries.inletFace === cfg.boundaries.outletFace) {
-    return 'Inlet and outlet must be different faces.';
-  }
-  if (cfg.boundaries.inletFace !== 'left' || cfg.boundaries.outletFace !== 'right') {
-    return 'For now inlet must be LEFT and outlet RIGHT.';
-  }
-  if (cfg.boundaries.speedMs <= 0) return 'Speed must be > 0 m/s.';
-  if (cfg.geometry.charLengthM <= 0) return 'Char. length must be > 0 m.';
-  if (cfg.fluid.nuPhysical <= 0) return 'ν must be > 0 m²/s.';
-  if ((cfg.geometry.type === 'svg' || cfg.geometry.type === 'dxf') && !svgMask) {
-    return 'Upload a vector file (.svg / .dxf) or pick another geometry.';
-  }
-  if (cfg.domain.mode === 'windtunnel') {
-    if (cfg.domain.tunnelMode === 'manual') {
-      if (cfg.domain.widthM <= 0 || cfg.domain.heightM <= 0) {
-        return 'Tunnel width and height must be > 0 m.';
-      }
-    }
-    if (cfg.domain.tunnelMode === 'svg' && !tunnelMask) {
-      return 'Upload a tunnel SVG/DXF or switch to MANUAL.';
-    }
-  }
-  return null;
-}
-
-/**
- * Owns the simulation lifecycle: solver construction, the rAF stepping loop,
- * force sampling and the run/pause/reset controls. App.tsx stays a pure
- * composition root that renders whatever this hook reports.
- */
 export function useSimulation(
   config: SimConfig,
-  svgMask: Uint8Array | null,
+  objectMask: Uint8Array | null,
   tunnelMask: Uint8Array | null,
 ) {
   const [built, setBuilt] = useState<Built | null>(null);
@@ -175,135 +45,172 @@ export function useSimulation(
   const [fps, setFps] = useState(0);
   const [umaxLattice, setUmaxLattice] = useState(0);
   const [redrawTick, setRedrawTick] = useState(0);
-  const [forceHistory, setForceHistory] = useState<ForceSnapshot[]>([]);
-  const [strouhal, setStrouhal] = useState<StrouhalEstimate>(NO_STROUHAL);
+  const [forceHistory, setForceHistory] = useState<ForceSample[]>([]);
+  const [strouhal, setStrouhal] = useState(NO_STROUHAL);
+  const [simulationError, setSimulationError] = useState<string | null>(null);
 
-  const builtRef = useRef<Built | null>(null);
-  builtRef.current = built;
-
-  // Spectral Cl buffer — independent of forceHistory (which the convergence
-  // chart owns and caps at 500 points). Created lazily so React 19 StrictMode's
-  // double render does not allocate two.
-  const strouhalRef = useRef<StrouhalEstimator | null>(null);
-  if (strouhalRef.current === null) strouhalRef.current = new StrouhalEstimator();
-  const lastEstimateRef = useRef(0);
-
-  /**
-   * Drop the spectral record. Called from exactly the paths that clear
-   * forceHistory — which are also the paths that rebuild the solver. A buffer
-   * spanning two configurations would produce a peak belonging to neither.
-   */
-  const resetStrouhal = () => {
-    strouhalRef.current!.reset();
-    lastEstimateRef.current = 0;
-    setStrouhal(NO_STROUHAL);
-  };
+  const clientRef = useRef<SimulationWorkerClient | null>(null);
+  const fpsCounterRef = useRef<FpsCounter>({ frames: 0, startedAt: 0 });
 
   const liveLbm = useMemo(() => computeLBM(config), [config]);
-  const liveCharCells = useMemo(() => geometryCharCells(config.geometry), [config.geometry]);
-
+  const liveCharCells = useMemo(
+    () => geometryCharCells(config.geometry),
+    [config.geometry],
+  );
   const validationError = useMemo(
-    () => validate(config, svgMask, tunnelMask),
-    [config, svgMask, tunnelMask],
+    () => validateSimulationConfig(config, objectMask, tunnelMask),
+    [config, objectMask, tunnelMask],
+  );
+  const { Nx: previewNx, Ny: previewNy } = useMemo(
+    () => resolveDomainSize(config),
+    [config],
   );
 
-  const { Nx: previewNx, Ny: previewNy } = useMemo(() => resolveDomainSize(config), [config]);
-
-  // Animation loop
   useEffect(() => {
-    if (!running || !built) return;
-    let rafId = 0;
-    let frames = 0;
-    let lastFpsT = performance.now();
+    const worker = new Worker(
+      new URL('../workers/simulation.worker.ts', import.meta.url),
+      { type: 'module' },
+    );
 
-    const tick = () => {
-      const b = builtRef.current;
-      if (!b) return;
-      const { solver } = b;
-      for (let s = 0; s < STEPS_PER_FRAME; s++) {
-        if (solver.step < PERTURB_STEPS) solver.injectPerturbation();
-        solver.iterate();
-      }
+    const applyFrame = (frame: FramePayload, countFps: boolean) => {
+      setStepCount(frame.step);
+      setUmaxLattice(frame.umax);
+      setForceHistory((previous) =>
+        [...previous, ...frame.forceSamples].slice(-FORCE_HISTORY_LIMIT),
+      );
+      setStrouhal(frame.strouhal);
+      setRedrawTick((tick) => tick + 1);
 
-      let maxMag2 = 0;
-      const { ux, uy, solid } = solver;
-      for (let i = 0; i < ux.length; i++) {
-        if (solid[i] === 1) continue;
-        const m2 = ux[i] * ux[i] + uy[i] * uy[i];
-        if (m2 > maxMag2) maxMag2 = m2;
-      }
-
-      setStepCount(solver.step);
-      setUmaxLattice(Math.sqrt(maxMag2));
-      setRedrawTick((t) => t + 1);
-
-      // Compute aerodynamic forces every 20 steps (not every frame — expensive)
-      if (solver.step % 20 === 0 && solver.step > 0) {
-        const forces = solver.computeForces(b.charCells);
-        setForceHistory((prev) => {
-          const next = [
-            ...prev,
-            { step: solver.step, Cd: forces.Cd, Cl: forces.Cl },
-          ];
-          return next.slice(-500); // keep last 500 points
-        });
-
-        // Cl, never Cd: Cd oscillates at twice the shedding frequency and
-        // would silently double St (spec 1.3a §1, SP-5).
-        strouhalRef.current!.push(forces.Cl);
-        const t = performance.now();
-        if (t - lastEstimateRef.current >= STROUHAL_INTERVAL_MS) {
-          lastEstimateRef.current = t;
-          // charCells is the same quantity the safety indicator feeds
-          // Re_safe — the full diameter/side/chord in cells.
-          setStrouhal(strouhalRef.current!.estimate(b.charCells, b.lbm.u0));
-        }
-      }
-
-      frames++;
+      if (!countFps) return;
       const now = performance.now();
-      if (now - lastFpsT >= 500) {
-        setFps((frames * 1000) / (now - lastFpsT));
-        frames = 0;
-        lastFpsT = now;
+      const counter = fpsCounterRef.current;
+      if (counter.startedAt === 0) counter.startedAt = now;
+      counter.frames++;
+      if (now - counter.startedAt >= 500) {
+        setFps((counter.frames * 1000) / (now - counter.startedAt));
+        counter.frames = 0;
+        counter.startedAt = now;
       }
-
-      rafId = requestAnimationFrame(tick);
     };
 
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [running, built]);
+    const handleMessage = (message: WorkerToMainMessage) => {
+      switch (message.type) {
+        case 'ready':
+          setBuilt({
+            ...message.metadata,
+            ux: message.ux,
+            uy: message.uy,
+            solid: message.solid,
+          });
+          setRunning(message.running);
+          applyFrame(message, false);
+          break;
+        case 'frame':
+          setBuilt((previous) =>
+            previous
+              ? { ...previous, ux: message.ux, uy: message.uy }
+              : previous,
+          );
+          applyFrame(message, true);
+          break;
+        case 'paused':
+          setBuilt((previous) =>
+            previous
+              ? { ...previous, ux: message.ux, uy: message.uy }
+              : previous,
+          );
+          setRunning(false);
+          setFps(0);
+          applyFrame(message, false);
+          break;
+        case 'suspended':
+          setBuilt((previous) =>
+            previous
+              ? { ...previous, ux: message.ux, uy: message.uy }
+              : previous,
+          );
+          setFps(0);
+          applyFrame(message, false);
+          break;
+        case 'error':
+          setRunning(false);
+          setFps(0);
+          setSimulationError(`Simulation ${message.phase} error: ${message.message}`);
+          break;
+      }
+    };
+
+    const client = new SimulationWorkerClient(
+      worker as unknown as WorkerPort,
+      handleMessage,
+    );
+    client.attachVisibility(document as unknown as VisibilitySource);
+    clientRef.current = client;
+
+    return () => {
+      client.terminate();
+      if (clientRef.current === client) clientRef.current = null;
+    };
+  }, []);
+
+  const hasBuilt = built !== null;
+  useEffect(() => {
+    if (!running || !hasBuilt) return;
+    let animationFrameId = 0;
+    let lastRequestAt = 0;
+
+    const requestFrame = (now: number) => {
+      if (now - lastRequestAt >= FRAME_INTERVAL_MS) {
+        if (clientRef.current?.requestFrame()) lastRequestAt = now;
+      }
+      animationFrameId = requestAnimationFrame(requestFrame);
+    };
+
+    animationFrameId = requestAnimationFrame(requestFrame);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [running, hasBuilt]);
+
+  const clearRunState = () => {
+    setBuilt(null);
+    setStepCount(0);
+    setUmaxLattice(0);
+    setFps(0);
+    setForceHistory([]);
+    setStrouhal(NO_STROUHAL);
+    setSimulationError(null);
+    fpsCounterRef.current = { frames: 0, startedAt: 0 };
+    setRedrawTick((tick) => tick + 1);
+  };
 
   const run = () => {
     if (validationError) return;
-    const next = buildSolverFromConfig(config, svgMask, tunnelMask);
-    setBuilt(next);
-    setStepCount(0);
-    setUmaxLattice(0);
-    setFps(0);
-    setForceHistory([]);
-    resetStrouhal();
-    setRedrawTick((t) => t + 1);
+    const client = clientRef.current;
+    if (!client) {
+      setSimulationError('Simulation Worker is not available.');
+      return;
+    }
+    clearRunState();
     setRunning(true);
+    client.run(config, objectMask, tunnelMask);
   };
 
-  const pause = () => setRunning(false);
+  const pause = () => clientRef.current?.pause();
 
   const reset = () => {
-    setRunning(false);
     if (!built) return;
-    const next = buildSolverFromConfig(config, svgMask, tunnelMask);
-    setBuilt(next);
-    setStepCount(0);
-    setUmaxLattice(0);
-    setFps(0);
-    setForceHistory([]);
-    resetStrouhal();
-    setRedrawTick((t) => t + 1);
+    const client = clientRef.current;
+    if (!client) {
+      setSimulationError('Simulation Worker is not available.');
+      return;
+    }
+    setRunning(false);
+    clearRunState();
+    client.reset(config, objectMask, tunnelMask);
   };
 
-  const requestRedraw = () => setRedrawTick((t) => t + 1);
+  const requestRedraw = useCallback(() => {
+    setRedrawTick((tick) => tick + 1);
+  }, []);
 
   return {
     built,
@@ -319,6 +226,7 @@ export function useSimulation(
     pause,
     reset,
     validationError,
+    simulationError,
     liveLbm,
     liveCharCells,
     previewNx,
