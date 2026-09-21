@@ -147,6 +147,8 @@ with it. This is a contained refactor and everything after it builds on solid
 ground. Watch React 19 StrictMode double-invocation in dev — the worker
 lifecycle must be idempotent.
 
+Implementation spec: [`docs/specs/phase-2-web-worker.md`](docs/specs/phase-2-web-worker.md).
+
 ### Step 3 — The interpretation layer *(the actual differentiator)*
 
 This is why SOPLO exists and it is still unbuilt. On top of the existing regime
