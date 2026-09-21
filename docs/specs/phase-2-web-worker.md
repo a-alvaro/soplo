@@ -316,3 +316,32 @@ behaviour and the validated sources of truth:
 2. record the command or code path, observed behaviour and likely cause;
 3. report whether it blocks the Worker boundary;
 4. do not fix an out-of-scope contradiction without a spec amendment.
+
+## 13. Implementation finding — Node 20 fast-suite budget
+
+**F1 (2026-09-21, blocking):** the first post-implementation Node 20 gate ran:
+
+```text
+npx -y -p node@20 npm run test:fast
+Test Files  21 passed (21)
+Tests       38 passed (38)
+Duration    30.21s
+```
+
+All existing tests and WK-1…WK-9 pass, but the measured duration misses the
+specified **under 30 seconds** gate by 0.21 s. The same command before Worker
+implementation was recorded at 29.72 s during Phase 1 closure, leaving only
+0.28 s of headroom; the isolated Worker test file currently passes 9/9 in
+approximately 0.52 s. The production build under Node 20 passes and emits a
+separate 17.20 kB Worker asset.
+
+**Current hypothesis:** the new headless Worker coverage is fast in isolation,
+but its additional file/import/CPU contention consumes the pre-existing suite's
+sub-second margin. This is a validation-budget finding, not a solver, Worker or
+browser-runtime failure.
+
+Per §8 and the discrepancy protocol, implementation closure stops here. No
+test, acceptance gate, solver work or Worker coverage has been weakened. A
+maintainer decision is required before further code changes: either optimize
+test orchestration while preserving all coverage and physics work, or amend the
+30-second budget with a newly derived threshold.
