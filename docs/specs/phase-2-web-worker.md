@@ -345,3 +345,25 @@ test, acceptance gate, solver work or Worker coverage has been weakened. A
 maintainer decision is required before further code changes: either optimize
 test orchestration while preserving all coverage and physics work, or amend the
 30-second budget with a newly derived threshold.
+
+### F1 verification campaign — registered before measurement
+
+Run the complete Node 20 fast suite three times at each of `--maxWorkers=3`,
+`--maxWorkers=4` and `--maxWorkers=5`. Compare medians, ranges and the number of
+runs below 30 seconds; do not select a configuration from a single favourable
+run. No test, solver value, coverage requirement or acceptance threshold may
+change during the campaign.
+
+**Predictions:** four workers should remain the fastest configuration, with a
+median around 30.1–30.3 seconds, because it was the best Phase 1 candidate
+(29.62 seconds versus 29.82 with two and 30.31 with six) and the new isolated
+Worker coverage adds approximately 0.52 seconds. Three workers may reduce CPU
+contention but should lengthen the scheduling critical path; five may expose
+more file parallelism but should lose some of that gain to contention. The
+expected differences are small enough that a stable sub-30 result is uncertain.
+
+**Decision rule:** change `--maxWorkers` only if one candidate has a sub-30
+median and the campaign supports that result across repetitions. If no
+candidate satisfies the existing gate reliably, retain full coverage and derive
+an explicit replacement budget from the observed distribution rather than
+rerunning until a favourable outlier appears.
