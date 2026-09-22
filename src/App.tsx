@@ -28,6 +28,7 @@ export default function App() {
     pause,
     reset,
     validationError,
+    simulationError,
     liveLbm,
     liveCharCells,
     previewNx,
@@ -122,7 +123,11 @@ export default function App() {
             {/* Field canvas (fills container, letter-boxed) */}
             <div className="canvas-letterbox">
               <Canvas2D
-                solver={built.solver}
+                Nx={built.Nx}
+                Ny={built.Ny}
+                ux={built.ux}
+                uy={built.uy}
+                solid={built.solid}
                 width={canvasSize.w}
                 height={canvasSize.h}
                 vmax={vmaxLattice}
@@ -175,7 +180,7 @@ export default function App() {
           running={running}
           hasSolver={built !== null}
           disabled={validationError !== null}
-          disabledReason={validationError ?? undefined}
+          disabledReason={validationError ?? simulationError ?? undefined}
           severity={liveSafety.overall}
           stepCount={stepCount}
           fps={fps}

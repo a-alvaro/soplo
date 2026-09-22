@@ -84,19 +84,22 @@ Custom D2Q9 **MRT** LBM solver in plain TypeScript, Canvas2D rendering.
   logic exists but its mode toggle is currently hidden.
 - Smoke-line streamline renderer; viridis-style field rendering (|u|, ux, uy, vorticity).
 - Safety indicator (Re/τ/Ma), InfoTip educational popovers, perturbation injection to seed vortex streets.
-- Headless Vitest coverage for solver invariants, boundary contracts and the
-  spectral estimator; `test:fast` currently runs 29 tests across 20 files.
+- Headless Vitest coverage for solver invariants, boundary contracts, the
+  spectral estimator and Worker runtime; `test:fast` currently runs 38 tests
+  across 21 files.
 - Canonical validation recorded in `VALIDATION.md`: BM-1 and BM-3 pass their
   literature gates; BM-2 is a converged reporting benchmark with a documented
   low-Re confinement limitation.
 - In-app Strouhal measurement from Cl, sharing the validated spectral path and
   annotating the unconfined literature reference when the app setup is confined.
+- Dedicated Web Worker simulation runtime: solver stepping, force sampling,
+  Strouhal estimation and field maxima stay off the browser main thread;
+  transferred snapshots feed Canvas2D with bounded backpressure.
 - Fast GitHub Actions CI on Node 20 and 24 (`test:fast` + production build).
 - Repository identity and hygiene: README, MIT license, agent rules, clean
   tracked tree and simulation loop extracted to `useSimulation`.
 
 **Missing (the reason for the roadmap):**
-- Solver runs on the main thread (no Web Worker yet).
 - Interpretation layer is embryonic (regime detection exists; explanation does not).
 - Guided experiments and teacher-mode lesson flows do not exist yet.
 
@@ -123,10 +126,10 @@ Headless test harness (Vitest) exercising the solver without the UI:
   request. The multi-hour canonical benchmarks remain a mandatory local ritual
   for solver/physics changes rather than an automatic per-push job.
 
-### Phase 2 — Interpretation layer (the differentiator) — NEXT
+### Phase 2 — Interpretation layer (the differentiator) — IN PROGRESS
 Build on the existing regime detection:
-- Move the solver to a **Web Worker** first (interpretation adds UI work; the
-  main thread must be free).
+- **Web Worker foundation — COMPLETE.** The validated solver now runs off the
+  main thread with deterministic lifecycle and pacing coverage.
 - Contextual "what am I seeing?" explanations driven by Re + convergence state (attached laminar flow → separation → von Kármán street → beyond-validity).
 - Canvas annotations: stagnation point, wake region, separation zone.
 - Plain-language glossary; expand InfoTips.
@@ -207,6 +210,7 @@ Shareable experiment/config URLs if cheap.
 | 2026-07-28 | **Literature reference annotated with blockage β when confined**; spec 1.3a rev 3 | Showing Williamson's unconfined value beside a confined in-app measurement reads as solver error when the gap is the user's β (honesty, AGENTS.md rule 2). The reference is annotated, never hidden. F8 dev-crash confirmed a React dev-instrumentation artifact — production build ran past a full buffer (107k steps), not a merge blocker |
 | 2026-09-20 | **Phase 1 closed; fast CI added; official benchmarks remain local** | `test:fast` and the production build run on Node 20/24 for pushes and pull requests. BM-1/BM-2/BM-3 remain the validated local ritual for solver/physics changes because automatic multi-hour reruns add cost without new information. Regression goldens, a benchmark guardian and optional seeded perturbation are deferred until external contributors or the next legitimate solver change |
 | 2026-09-20 | **Web Worker is the next implementation phase; bundle size re-measured there** | The validated solver remains unchanged and moves off the main thread before interpretation UI expands. The current production build is valid but warns about a ~608 kB minified JS chunk; Worker extraction changes chunk topology, so size is measured again before separate code-splitting work is considered |
+| 2026-09-22 | **Web Worker foundation closed; Node 20 fast budget derived at <32 s** | Solver/physics stayed unchanged; WK-1…WK-9 cover ownership, transfer isolation, lifecycle, stale events and pacing. Four workers measured best; five comparable Node 20 runs ranged 29.80–30.89 s, so the old 30 s bound sat inside normal variance. The 32 s test-orchestration budget adds 1.11 s above the observed maximum without changing coverage or physics gates. Build emits a 17.20 kB Worker and a 602.77 kB main chunk; code splitting remains separate work |
 
 ## 7. Reference projects
 

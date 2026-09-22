@@ -35,6 +35,8 @@ export function SimControlsOverlay({
   const runLabel = severity === 'error' && !disabled ? '⚠ RUN ANYWAY' : '▶ RUN';
   const runTitle = disabled
     ? disabledReason
+    : disabledReason
+      ? `${disabledReason} Run again to retry.`
     : severity === 'error'
       ? 'Stability warning — may diverge'
       : severity === 'warn'
@@ -81,7 +83,7 @@ export function SimControlsOverlay({
         </button>
       </div>
 
-      {disabled && disabledReason && (
+      {disabledReason && (
         <p className="sim-controls-error">{disabledReason}</p>
       )}
 
