@@ -142,3 +142,24 @@ workflow or dispatch `Deploy Pages` manually from `main`.
 
 Do not create the Namecheap CNAME until the rerun succeeds and the GitHub Pages
 custom-domain field has been set to `soplo.alx.engineering`.
+
+## 11. Closure evidence
+
+Phase 2.1 closed on 2026-09-22:
+
+- Normal CI run `35750401198` passed on `main`.
+- Pages run `35750401206` built, uploaded and deployed the relative-base
+  artifact successfully.
+- `https://a-alvaro.github.io/soplo/` returned HTTP 200 and passed a production
+  smoke to 1,290 steps with Ux switching and no console warning/error.
+- GitHub's custom-domain field was set before DNS. Namecheap now publishes
+  `soplo.alx.engineering CNAME a-alvaro.github.io`; the system, Cloudflare and
+  Google resolvers all returned the expected target and GitHub Pages addresses.
+- `https://soplo.alx.engineering/` returns HTTP 200 with a valid certificate;
+  plain HTTP returns 301 to the HTTPS URL.
+- Final custom-domain smoke reached 1,030 steps, paused coherently with Ux
+  active and produced no browser warning/error.
+
+No generated artifact, credential, solver, physics, UI or acceptance-gate
+change entered the phase. The public preview is live and reproducible from
+`main`.
