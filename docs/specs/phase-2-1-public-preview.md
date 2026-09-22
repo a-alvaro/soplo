@@ -114,3 +114,31 @@ amendment and maintainer decision.
 
 - [GitHub Pages custom Actions workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
 - [GitHub Pages custom subdomains and DNS](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+
+## 10. Implementation finding — first-time Pages enablement
+
+**F1 (2026-09-22, external setup required):** the first `main` deployment run
+(`35748057870`) stopped at `actions/configure-pages@v5` before dependency
+installation or build:
+
+```text
+Get Pages site failed. Please verify that the repository has Pages enabled and
+configured to build using GitHub Actions.
+HttpError: Not Found
+```
+
+This is the expected first-time repository state, not an application or
+workflow-build failure. The normal CI for the same `main` commit continues
+independently. Local evidence remains green: 38/38 fast tests, normal build,
+relative-base Pages build, emitted 17.20 kB Worker and browser smoke through
+run/pause/reset/Ux with no console warning or error.
+
+The official action's `enablement` option cannot use the repository
+`GITHUB_TOKEN`; it requires a separate personal or GitHub App token with
+administration/Pages permissions. SOPLO will not add that persistent credential
+for a one-time setup. The maintainer must instead select **Settings → Pages →
+Build and deployment → Source: GitHub Actions**. After that, rerun the failed
+workflow or dispatch `Deploy Pages` manually from `main`.
+
+Do not create the Namecheap CNAME until the rerun succeeds and the GitHub Pages
+custom-domain field has been set to `soplo.alx.engineering`.
