@@ -255,7 +255,10 @@ Verification order:
    running, background the tab until `suspended` is acknowledged: the step must
    advance by no more than the current five-step batch; returning resumes the
    same generation without a burst. Then navigate or reload without an orphan
-   Worker or console error.
+   Worker or console error. If the automation browser keeps controlled tabs in
+   a foreground-visible state, record that harness limitation and use WK-5 and
+   WK-9 as the deterministic suspend/no-catch-up evidence; do not mutate
+   `document.visibilityState` to manufacture a browser pass.
 6. Development StrictMode smoke: one active simulation, no doubled step rate,
    duplicate force samples or messages after cleanup.
 
@@ -281,7 +284,8 @@ The phase is complete only when all of the following hold:
 3. WK-1…WK-9, all prior fast tests and the production build pass on Node 20 and
    Node 24; the Node 20 fast tier remains under 32 seconds.
 4. Production and StrictMode smokes satisfy §8 with no stale messages, doubled
-   simulation, hidden-tab advancement, resume catch-up or orphan Worker.
+   simulation or orphan Worker; WK-5/WK-9 prove hidden-tab suspension and
+   no-catch-up when the automation browser cannot emit a real visibility event.
 5. The build output records main and Worker chunk sizes. The existing ~608 kB
    warning is re-evaluated, not hidden; a remaining warning is documented and
    deferred rather than mixed into this refactor.
@@ -412,3 +416,35 @@ old gate sits inside normal observed variation rather than above it.
 30.89-second maximum and leaves 1.11 seconds (3.6%) of operational headroom.
 It is a test-orchestration budget only: WK-1…WK-9, all prior coverage, solver
 values and every physics acceptance window remain unchanged.
+
+## 14. Closure evidence
+
+Phase 2.0 closed on 2026-09-22 with the following evidence:
+
+- Static audit found no solver iteration, force computation, spectral transform
+  or full-field maximum scan in `App.tsx`, hooks, components or rendering. The
+  Worker owns the live `LBMSolver`; the main thread receives transferred field
+  snapshots and immutable metadata only.
+- Node 20 closure: 21/21 files and 38/38 tests passed in 30.48 seconds, below
+  the derived 32-second budget; the production build passed.
+- Node 24 closure: 21/21 files and 38/38 tests passed in 24.54 seconds; the
+  production build passed.
+- Both builds emitted `simulation.worker-Bj-aB4cB.js` at 17.20 kB. The main
+  JavaScript chunk moved from 608.31 kB before extraction to 602.77 kB
+  (184.89 kB gzip). Vite's existing 500 kB warning remains visible and is
+  deferred to a separately scoped bundle-splitting task.
+- Production smoke ran the cylinder beyond 14,000 steps, exercised Results,
+  field switching, pause, reset, rerun and reload, produced finite forces and
+  no console warning/error. Development StrictMode produced no doubled runtime
+  or console error; WK-7 provides deterministic lifecycle coverage.
+- The Chrome automation provider kept SOPLO reporting
+  `document.visibilityState === 'visible'` after a blank controlled tab became
+  selected: the displayed step advanced from 14,680 to 14,925 in 2.5 seconds.
+  This is a harness limitation, not a claimed hidden-tab pass. WK-5 and WK-9
+  deterministically verify zero suspended advancement, same-generation resume
+  and no catch-up burst without weakening the contract.
+
+No file under `src/lbm/` or `src/physics/` changed, so the benchmark exemption
+in §8 applies. The phase is closed with all Worker gates and prior fast coverage
+intact; the separately recorded streamline product-claim discrepancy remains
+outside this phase.
