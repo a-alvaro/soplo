@@ -5,7 +5,7 @@
 > without depending on any particular AI assistant, chat history, or session
 > memory. Everything referenced here lives in this repository.
 >
-> Last updated: 2026-09-20 (after Phase 1 closure).
+> Last updated: 2026-09-22 (after Phase 2.0 Web Worker closure).
 
 ---
 
@@ -18,20 +18,20 @@ Read these three files, in this order. They are the source of truth:
 2. **`VALIDATION.md`** — what has been proven, with numbers and references.
 3. **`AGENTS.md`** — the operating rules and protected invariants.
 
-Then: `npm run test:fast`. If it is green and completes inside the 30-second
+Then: `npm run test:fast`. If it is green and completes inside the 32-second
 budget, the project is healthy and you can start. If it is not, that is the
 first thing to fix — nothing else proceeds on a red suite.
 
 **State in one paragraph:** 2D LBM (D2Q9, MRT) fluid simulator in the browser,
-React 19 + TypeScript + Vite, Float64 solver on the main thread. Phase 0 and
-Phase 1 are complete: 29 fast invariant/boundary/spectral tests, production
-build CI on Node 20/24, canonical benchmark records, and in-app Strouhal.
+React 19 + TypeScript + Vite, with the Float64 solver running in a dedicated Web
+Worker. Phase 0, Phase 1 and the Phase 2.0 Worker foundation are complete: 38
+fast invariant/boundary/spectral/Worker tests across 21 files, production build
+CI on Node 20/24, canonical benchmark records, and in-app Strouhal.
 Poiseuille validates to 0.159% against the analytic solution; cylinder at
 Re = 100 gives Cd = 1.428 and St = 0.1691, both inside literature windows;
 cylinder at Re = 20 is a documented reporting benchmark (+6.8%, low-Re
 confinement). The differentiator — the interpretation layer that explains the
-physics to non-experts — is **not built yet**. Move the unchanged solver to a
-Web Worker before building it.
+physics to non-experts — is **not built yet** and is the next step.
 
 ---
 
@@ -139,17 +139,19 @@ Key decisions already made (do not relitigate):
   test tones at a **non-round frequency** so a stray factor of 20 or 2π cannot
   pass by coincidence; and include `tests/spectral` in `test:fast`.
 
-### Step 2 — Move the solver to a Web Worker — NEXT
+### Step 2 — Move the solver to a Web Worker — COMPLETE
 
-Do this **before** building interpretation UI, not after. The solver currently
-runs on the main thread; reactive panels and canvas annotations will compete
-with it. This is a contained refactor and everything after it builds on solid
-ground. Watch React 19 StrictMode double-invocation in dev — the worker
-lifecycle must be idempotent.
+The unchanged solver now runs in a dedicated Worker; the main thread owns React,
+controls and Canvas2D rendering and receives transferred snapshots. Lifecycle,
+backpressure, stale-generation protection, visibility suspension and no-catch-up
+pacing are covered by WK-1…WK-9. Node 20/24 suites and builds pass; the measured
+Node 20 fast-suite budget is under 32 seconds. The Worker is 17.20 kB and the
+main bundle is 602.77 kB, so the existing >500 kB warning remains visible and
+deferred rather than being mixed into this refactor.
 
 Implementation spec: [`docs/specs/phase-2-web-worker.md`](docs/specs/phase-2-web-worker.md).
 
-### Step 3 — The interpretation layer *(the actual differentiator)*
+### Step 3 — The interpretation layer *(the actual differentiator)* — NEXT
 
 This is why SOPLO exists and it is still unbuilt. On top of the existing regime
 detection (steady / oscillating / unstable) and the new Strouhal:

@@ -59,8 +59,9 @@ npm run dev     # Vite dev server, prints a local URL
 ## Tech stack
 
 - **React 19 + TypeScript + Vite + Tailwind CSS 4**, recharts for plots.
-- Custom **D2Q9 MRT** Lattice-Boltzmann solver in plain TypeScript (no WebGL/GPU
-  yet — a WebGPU solver is on the v2 horizon), rendered with Canvas2D.
+- Custom **D2Q9 MRT** Lattice-Boltzmann solver in plain TypeScript, running in a
+  dedicated Web Worker and rendered with Canvas2D (no WebGL/GPU yet — a WebGPU
+  solver is on the v2 horizon).
 - The solver (`src/lbm/`) is pure and headless: no React, no DOM, runnable in
   Node.
 
@@ -87,13 +88,14 @@ npm run dev     # Vite dev server, prints a local URL
   and fast CI on Node 20 and 24.
 - In-app Strouhal measurement from the Cl history, validated against the BM-3
   solver trace and annotated honestly for confined cylinder setups.
+- Dedicated Web Worker execution keeps solver stepping, force/spectral analysis
+  and full-field scans off the browser main thread while Canvas2D receives
+  transferred snapshots.
 
 **Not there yet (the roadmap):**
 
 - **Interpretation layer** — contextual "what am I seeing?" explanations,
   canvas annotations (stagnation point, wake, separation), and a glossary.
-- **Web Worker execution** — move the unchanged, validated solver off the main
-  thread before expanding the reactive interpretation UI.
 - **Guided experiments** — JSON-preset lessons (vortex shedding vs. Re, angle
   of attack on an airfoil, blunt vs. streamlined bodies).
 
