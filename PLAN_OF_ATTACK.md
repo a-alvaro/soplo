@@ -5,7 +5,7 @@
 > without depending on any particular AI assistant, chat history, or session
 > memory. Everything referenced here lives in this repository.
 >
-> Last updated: 2026-09-22 (after Phase 2.0 Web Worker closure).
+> Last updated: 2026-09-22 (after Phase 2.1 public preview closure).
 
 ---
 
@@ -150,6 +150,16 @@ main bundle is 602.77 kB, so the existing >500 kB warning remains visible and
 deferred rather than being mixed into this refactor.
 
 Implementation spec: [`docs/specs/phase-2-web-worker.md`](docs/specs/phase-2-web-worker.md).
+
+### Step 2.1 — Publish the validated preview — COMPLETE
+
+SOPLO is deployed from `main` through GitHub Actions and GitHub Pages at
+[`soplo.alx.engineering`](https://soplo.alx.engineering/). The Namecheap
+subdomain uses a direct CNAME to `a-alvaro.github.io`; GitHub provides and
+enforces HTTPS. The Pages artifact uses relative asset paths, so the module
+Worker loads from both the temporary project URL and the custom-domain root.
+
+Deployment spec: [`docs/specs/phase-2-1-public-preview.md`](docs/specs/phase-2-1-public-preview.md).
 
 ### Step 3 — The interpretation layer *(the actual differentiator)* — NEXT
 

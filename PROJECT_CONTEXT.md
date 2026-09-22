@@ -95,6 +95,8 @@ Custom D2Q9 **MRT** LBM solver in plain TypeScript, Canvas2D rendering.
 - Dedicated Web Worker simulation runtime: solver stepping, force sampling,
   Strouhal estimation and field maxima stay off the browser main thread;
   transferred snapshots feed Canvas2D with bounded backpressure.
+- Public HTTPS preview deployed reproducibly from `main` at
+  [`soplo.alx.engineering`](https://soplo.alx.engineering/).
 - Fast GitHub Actions CI on Node 20 and 24 (`test:fast` + production build).
 - Repository identity and hygiene: README, MIT license, agent rules, clean
   tracked tree and simulation loop extracted to `useSimulation`.
@@ -211,6 +213,7 @@ Shareable experiment/config URLs if cheap.
 | 2026-09-20 | **Phase 1 closed; fast CI added; official benchmarks remain local** | `test:fast` and the production build run on Node 20/24 for pushes and pull requests. BM-1/BM-2/BM-3 remain the validated local ritual for solver/physics changes because automatic multi-hour reruns add cost without new information. Regression goldens, a benchmark guardian and optional seeded perturbation are deferred until external contributors or the next legitimate solver change |
 | 2026-09-20 | **Web Worker is the next implementation phase; bundle size re-measured there** | The validated solver remains unchanged and moves off the main thread before interpretation UI expands. The current production build is valid but warns about a ~608 kB minified JS chunk; Worker extraction changes chunk topology, so size is measured again before separate code-splitting work is considered |
 | 2026-09-22 | **Web Worker foundation closed; Node 20 fast budget derived at <32 s** | Solver/physics stayed unchanged; WK-1…WK-9 cover ownership, transfer isolation, lifecycle, stale events and pacing. Four workers measured best; five comparable Node 20 runs ranged 29.80–30.89 s, so the old 30 s bound sat inside normal variance. The 32 s test-orchestration budget adds 1.11 s above the observed maximum without changing coverage or physics gates. Build emits a 17.20 kB Worker and a 602.77 kB main chunk; code splitting remains separate work |
+| 2026-09-22 | **Public preview lives at `soplo.alx.engineering`** | GitHub Pages deploys a tested relative-base Vite artifact from `main`; Namecheap provides only the `soplo` CNAME and GitHub enforces HTTPS. The validated CPU Worker remains the production backend. WebGPU is documented as an optional, separately validated v2 backend rather than a prerequisite for web distribution |
 
 ## 7. Reference projects
 

@@ -10,6 +10,9 @@
 > The wind tunnel you wish you had before (and during) your first fluid
 > mechanics course.
 
+**[Try SOPLO in your browser](https://soplo.alx.engineering/)** — no install or
+account required.
+
 ![SOPLO cylinder wake at Re ≈ 100](docs/demo.gif)
 
 ## What it does
