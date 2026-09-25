@@ -64,6 +64,26 @@ publish new literature claims.
 These findings must be resolved by an explicitly scoped follow-up. They are not
 silently folded into contextual explanations.
 
+### 2.2 Implementation finding — Cd settling and periodic Cl are compatible
+
+The 2026-09-25 production smoke exposed an incorrect assumption in the first
+draft. An in-app cylinder at Re = 100, D = 10 and β = 10% reached:
+
+- the Cd classifier's `converging` state;
+- St = 0.1806 from 19.5 resolved Cl periods;
+- spectral prominence 195×.
+
+These signals do not conflict. The convergence heuristic classifies **Cd**,
+while the spectral estimator detects periodicity from **Cl**. A settled mean
+drag and a periodic lift signal are compatible with established vortex
+shedding. Therefore a valid St result owns the periodicity conclusion after the
+safety, data-sufficiency and unstable-signal guards. The low-Re cylinder check
+remains a real conflict because a resolved periodic signal below the documented
+shedding onset contradicts the applicable physical regime.
+
+No threshold, spectral rule or physics implementation changes because of this
+finding. Only evidence precedence and UI wording change.
+
 ## 3. Scope
 
 ### 3.1 Included
@@ -225,13 +245,12 @@ After the guards above:
 | `oscillating` + St `filling` | The force signal varies, but more history is needed to determine whether the variation has a stable period. |
 | `oscillating` + St `no-peak` | The recent force signal varies, but this record contains no resolved dominant periodic lift frequency. |
 | `oscillating` + St `band-edge` | A slow variation may be present, but its period is not resolved; run longer. |
-| `oscillating` + St `ok`, non-cylinder | A dominant periodic lift signal is resolved. Do not assign a cylinder-specific wake name. |
-| `oscillating` + St `ok`, cylinder, `49 < Re < 178` | A periodic wake consistent with a laminar von Kármán vortex street is resolved; explain that alternating vortices drive oscillating lift and that `St` is its dimensionless frequency. |
+| (`converging` or `oscillating`) + St `ok`, non-cylinder | A dominant periodic lift signal is resolved. Do not assign a cylinder-specific wake name. |
+| (`converging` or `oscillating`) + St `ok`, cylinder, `49 < Re < 178` | A periodic wake consistent with a laminar von Kármán vortex street is resolved; explain that alternating vortices drive oscillating lift and that `St` is its dimensionless frequency. |
 
-An `ok` spectral estimate paired with `converging` is conflicting evidence. The
-output must say the signals disagree and return `caution`; it must not silently
-choose the more attractive conclusion. This case is unit-tested even if it is
-rare in normal runs.
+An `ok` spectral estimate paired with `converging` is **not** conflicting
+evidence: Cd can settle while Cl remains periodic. The output uses the resolved
+Cl spectrum for periodicity and retains the Cd status as a separate observation.
 
 ### 6.3 Cylinder-specific context
 
@@ -283,12 +302,13 @@ Visual treatment reuses current panel typography and severity colours. It must
 not rely on colour alone: confidence is also communicated in text. No modal,
 animation, accordion or new panel is added.
 
-The existing Status block becomes evidence-focused:
+The existing Status block becomes evidence-focused and names the signal it
+actually classifies:
 
 - `INSUFFICIENT DATA`
-- `● FORCE SIGNAL SETTLING`
-- `● FORCE SIGNAL OSCILLATING`
-- `⚠ FORCE SIGNAL UNSETTLED`
+- `● DRAG SIGNAL SETTLING`
+- `● DRAG SIGNAL OSCILLATING`
+- `⚠ DRAG SIGNAL UNSETTLED`
 
 The explanatory section, not that badge, owns the physical interpretation.
 
@@ -326,9 +346,9 @@ chaos.
 
 ### IX-3 — Cylinder vortex-street gate
 
-“Von Kármán” appears only for a built-in cylinder with `49 < Re < 178`,
-`convergence === 'oscillating'`, `strouhal.status === 'ok'` and numerical safety
-other than `error`.
+“Von Kármán” appears only for a built-in cylinder with `49 < Re < 178`, settled
+convergence (`converging` or `oscillating`), `strouhal.status === 'ok'` and
+numerical safety other than `error`.
 
 ### IX-4 — Geometry isolation
 
@@ -342,10 +362,11 @@ Tests pin the `Re ≤ 47` steady-regime wording, the conservative `47 < Re ≤ 4
 gap, Williamson suppression from `Re ≥ 178`, and the two-dimensional caveat
 from `Re ≥ 190`.
 
-### IX-6 — Conflicting evidence
+### IX-6 — Cross-signal coherence
 
-`converging` plus St `ok`, and low-Re cylinder plus St `ok`, return `caution`
-and explicitly say the indicators disagree.
+`converging` Cd plus St `ok` follows the periodic interpretation because the St
+evidence comes from Cl. A low-Re cylinder plus St `ok` still returns `caution`
+and explicitly says the indicators disagree.
 
 ### IX-7 — Confinement honesty
 
