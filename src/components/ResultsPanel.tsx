@@ -14,7 +14,10 @@ import {
 } from '../physics/spectral';
 import {
   forceConvergenceStatus,
+  interpretFlow,
   type ConvergenceStatus,
+  type InterpretationConfidence,
+  type NumericalSafety,
 } from '../interpretation/flowInterpretation';
 import type { GeometryType } from '../types/SimConfig';
 
@@ -34,6 +37,8 @@ interface Props {
   geometryType: GeometryType | null;
   /** Reynolds number of the built solver — the reference is Re-dependent. */
   Re: number;
+  /** Numerical safety of the built solver, never the editable live controls. */
+  numericalSafety: NumericalSafety;
   /** Body size in cells (D) of the built solver — for the blockage ratio β = D/Ny. */
   charCells: number | null;
   /** Cross-stream domain size in cells of the built solver — the β denominator. */
@@ -64,7 +69,7 @@ function fmt(n: number, digits = 3): string {
 const STROUHAL_STATUS_TEXT: Record<StrouhalStatus, string> = {
   ok: '',
   filling: 'collecting samples — needs ≥ 6 shedding periods',
-  'no-peak': 'no dominant frequency — flow is not shedding periodically',
+  'no-peak': 'no dominant frequency resolved in this record',
   'band-edge': 'peak unresolved at the low edge of the search band',
 };
 
@@ -113,6 +118,7 @@ export function ResultsPanel({
   strouhal,
   geometryType,
   Re,
+  numericalSafety,
   charCells,
   Ny,
 }: Props) {
@@ -136,6 +142,14 @@ export function ResultsPanel({
   const stReference = literatureSt(geometryType, Re);
   const blockage = blockageRatio(charCells, Ny);
   const confinementCaption = blockageCaption(blockage);
+  const interpretation = interpretFlow({
+    geometryType,
+    re: Re,
+    numericalSafety,
+    convergence: status,
+    strouhal,
+    blockageRatio: blockage,
+  });
 
   // Chart data — last 200 points, rounded for performance
   const chartData = history.slice(-200).map((h) => ({
@@ -146,9 +160,9 @@ export function ResultsPanel({
 
   const statusLabel: Record<ConvergenceStatus, string> = {
     insufficient: 'INSUFFICIENT DATA',
-    converging: '● CONVERGING',
-    oscillating: `● OSCILLATING — periodic vortex shedding\n  Cd mean = ${fmt(cdMean)} ± ${fmt(cdStd)}`,
-    unstable: '⚠ UNSTABLE',
+    converging: '● FORCE SIGNAL SETTLING',
+    oscillating: `● FORCE SIGNAL OSCILLATING\n  Cd mean = ${fmt(cdMean)} ± ${fmt(cdStd)}`,
+    unstable: '⚠ FORCE SIGNAL UNSETTLED',
   };
 
   const statusClass: Record<ConvergenceStatus, string> = {
@@ -156,6 +170,14 @@ export function ResultsPanel({
     converging: 'results-status--ok',
     oscillating: 'results-status--warn',
     unstable: 'results-status--err',
+  };
+
+  const confidenceLabel: Record<InterpretationConfidence, string> = {
+    'not-applicable': 'NOT APPLICABLE',
+    collecting: 'COLLECTING',
+    supported: 'SUPPORTED',
+    caution: 'CAUTION',
+    unreliable: 'UNRELIABLE',
   };
 
   return (
@@ -306,6 +328,38 @@ export function ResultsPanel({
           <div className={`results-status ${statusClass[status]}`} style={{ whiteSpace: 'pre-line' }}>
             {statusLabel[status]}
           </div>
+
+          {/* Contextual interpretation */}
+          <div className="results-section-label">// WHAT YOU ARE SEEING</div>
+          <section
+            className={`results-interpretation results-interpretation--${interpretation.confidence}`}
+          >
+            <div className="results-interpretation-heading">
+              <span className="results-interpretation-confidence">
+                {confidenceLabel[interpretation.confidence]}
+              </span>
+              <span className="results-interpretation-title">
+                {interpretation.title}
+              </span>
+            </div>
+            <p className="results-interpretation-summary">
+              {interpretation.summary}
+            </p>
+            {interpretation.evidence.length > 0 && (
+              <ul className="results-interpretation-list">
+                {interpretation.evidence.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            )}
+            {interpretation.caveats.length > 0 && (
+              <ul className="results-interpretation-list results-interpretation-list--caveat">
+                {interpretation.caveats.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           {/* Disclaimer */}
           <p className="results-disclaimer">
