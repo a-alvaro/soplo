@@ -12,6 +12,10 @@ import {
   type StrouhalEstimate,
   type StrouhalStatus,
 } from '../physics/spectral';
+import {
+  forceConvergenceStatus,
+  type ConvergenceStatus,
+} from '../interpretation/flowInterpretation';
 import type { GeometryType } from '../types/SimConfig';
 
 export interface ForceSnapshot {
@@ -34,45 +38,6 @@ interface Props {
   charCells: number | null;
   /** Cross-stream domain size in cells of the built solver — the β denominator. */
   Ny: number | null;
-}
-
-// ─── Convergence status ───────────────────────────────────────────────────────
-
-type ConvergenceStatus =
-  | 'insufficient'
-  | 'converging'
-  | 'oscillating'
-  | 'unstable';
-
-function convergenceStatus(history: ForceSnapshot[]): ConvergenceStatus {
-  if (history.length < 50) return 'insufficient';
-
-  const recent = history.slice(-100);
-  const cdValues = recent.map((h) => h.Cd);
-  const n = cdValues.length;
-  const cdMean = cdValues.reduce((a, b) => a + b, 0) / n;
-  const absMean = Math.abs(cdMean);
-
-  // Divergence: NaN, infinite, or physically absurd values
-  if (!Number.isFinite(cdMean) || absMean > 50 || absMean < 1e-6) {
-    return 'unstable';
-  }
-
-  const cdStd = Math.sqrt(
-    cdValues.reduce((a, b) => a + (b - cdMean) ** 2, 0) / n,
-  );
-  const cv = cdStd / absMean;
-
-  // Count mean-crossings: many regular crossings = periodic oscillation
-  let crossings = 0;
-  for (let i = 1; i < cdValues.length; i++) {
-    if ((cdValues[i - 1] - cdMean) * (cdValues[i] - cdMean) < 0) crossings++;
-  }
-
-  if (cv < 0.03) return 'converging';                    // nearly constant
-  if (crossings >= 4 && cv < 0.5) return 'oscillating'; // periodic (von Kármán)
-  if (cv < 0.15) return 'oscillating';                   // moderate oscillation
-  return 'unstable';                                      // chaotic / diverging
 }
 
 function mean(arr: number[]): number {
@@ -167,7 +132,7 @@ export function ResultsPanel({
   const cdStd = std(cdArr, cdMean);
   const clStd = std(clArr, clMean);
 
-  const status = convergenceStatus(history);
+  const status = forceConvergenceStatus(history);
   const stReference = literatureSt(geometryType, Re);
   const blockage = blockageRatio(charCells, Ny);
   const confinementCaption = blockageCaption(blockage);
