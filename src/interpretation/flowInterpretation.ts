@@ -161,8 +161,8 @@ export function interpretFlow(
       input,
       result(
         'collecting',
-        'Collecting force history',
-        'The force record is still too short to distinguish a settling signal from a recurring variation. Let the simulation continue.',
+        'Collecting drag history',
+        'The drag record is still too short to distinguish a settling signal from a recurring variation. Let the simulation continue.',
       ),
     );
   }
@@ -172,20 +172,8 @@ export function interpretFlow(
       input,
       result(
         'caution',
-        'Force signal not settled',
-        'The recent aerodynamic-force signal is not settled enough for a physical interpretation.',
-      ),
-    );
-  }
-
-  if (input.convergence === 'converging' && input.strouhal.status === 'ok') {
-    return finalize(
-      input,
-      result(
-        'caution',
-        'Indicators disagree',
-        'The drag signal is settling, but the lift spectrum reports a dominant periodic frequency. Run longer before assigning a flow regime.',
-        periodicEvidence(input.strouhal),
+        'Drag signal not settled',
+        'The recent drag signal is not settled enough for a physical interpretation.',
       ),
     );
   }
@@ -206,6 +194,25 @@ export function interpretFlow(
     );
   }
 
+  if (input.strouhal.status === 'ok') {
+    const cylinderVortexStreet =
+      input.geometryType === 'cylinder' && input.re > 49 && input.re < 178;
+
+    return finalize(
+      input,
+      result(
+        'supported',
+        cylinderVortexStreet
+          ? 'Laminar von Kármán vortex street'
+          : 'Dominant periodic lift signal',
+        cylinderVortexStreet
+          ? 'The lift signal has a stable period consistent with alternating vortices shed from the cylinder. The Strouhal number is the dimensionless frequency of that cycle.'
+          : 'The lift signal contains a resolved dominant period. The available evidence supports a recurring aerodynamic load, but not a geometry-specific wake label.',
+        periodicEvidence(input.strouhal),
+      ),
+    );
+  }
+
   if (input.convergence === 'converging') {
     const cylinderSteady =
       input.geometryType === 'cylinder' && input.re <= 47;
@@ -213,10 +220,10 @@ export function interpretFlow(
       input,
       result(
         'supported',
-        cylinderSteady ? 'Steady cylinder wake' : 'Force signal settling',
+        cylinderSteady ? 'Steady cylinder wake' : 'Drag signal settling',
         cylinderSteady
-          ? 'The recent force signal is settling toward a steady value, consistent with the documented steady-cylinder regime at this Reynolds number.'
-          : 'The recent aerodynamic-force signal is settling toward a steady value.',
+          ? 'The recent drag signal is settling toward a steady value, consistent with the documented steady-cylinder regime at this Reynolds number.'
+          : 'The recent drag signal is settling toward a steady value.',
         ['The recent drag-coefficient signal is nearly constant.'],
       ),
     );
@@ -228,7 +235,7 @@ export function interpretFlow(
       result(
         'collecting',
         'Variation detected; period still collecting',
-        'The force signal varies, but the record is not yet long enough to determine whether that variation has a stable period.',
+        'The drag signal varies, but the record is not yet long enough to determine whether that variation has a stable period.',
       ),
     );
   }
@@ -239,7 +246,7 @@ export function interpretFlow(
       result(
         'caution',
         'No dominant period resolved',
-        'The recent force signal varies, but this record contains no resolved dominant periodic lift frequency.',
+        'The recent drag signal varies, but this record contains no resolved dominant periodic lift frequency.',
       ),
     );
   }
@@ -255,20 +262,12 @@ export function interpretFlow(
     );
   }
 
-  const cylinderVortexStreet =
-    input.geometryType === 'cylinder' && input.re > 49 && input.re < 178;
-
   return finalize(
     input,
     result(
-      'supported',
-      cylinderVortexStreet
-        ? 'Laminar von Kármán vortex street'
-        : 'Dominant periodic lift signal',
-      cylinderVortexStreet
-        ? 'The lift signal has a stable period consistent with alternating vortices shed from the cylinder. The Strouhal number is the dimensionless frequency of that cycle.'
-        : 'The lift signal contains a resolved dominant period. The available evidence supports a recurring aerodynamic load, but not a geometry-specific wake label.',
-      periodicEvidence(input.strouhal),
+      'caution',
+      'Evidence unavailable',
+      'The current signals do not support a physical interpretation yet.',
     ),
   );
 }

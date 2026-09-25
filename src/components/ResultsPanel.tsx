@@ -160,9 +160,9 @@ export function ResultsPanel({
 
   const statusLabel: Record<ConvergenceStatus, string> = {
     insufficient: 'INSUFFICIENT DATA',
-    converging: '● FORCE SIGNAL SETTLING',
-    oscillating: `● FORCE SIGNAL OSCILLATING\n  Cd mean = ${fmt(cdMean)} ± ${fmt(cdStd)}`,
-    unstable: '⚠ FORCE SIGNAL UNSETTLED',
+    converging: '● DRAG SIGNAL SETTLING',
+    oscillating: `● DRAG SIGNAL OSCILLATING\n  Cd mean = ${fmt(cdMean)} ± ${fmt(cdStd)}`,
+    unstable: '⚠ DRAG SIGNAL UNSETTLED',
   };
 
   const statusClass: Record<ConvergenceStatus, string> = {

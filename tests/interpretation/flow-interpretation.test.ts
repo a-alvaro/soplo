@@ -143,13 +143,23 @@ describe('interpretFlow periodic evidence', () => {
     }
   });
 
-  it('reports conflicting convergence and spectral evidence', () => {
+  it('uses resolved lift periodicity when drag has settled', () => {
     const interpretation = interpretFlow(
       input({ convergence: 'converging' }),
     );
 
-    expect(interpretation.confidence).toBe('caution');
-    expect(interpretation.title).toBe('Indicators disagree');
+    expect(interpretation.confidence).toBe('supported');
+    expect(interpretation.title).toContain('von Kármán');
+  });
+
+  it('keeps settled-drag periodicity geometry-neutral for non-cylinders', () => {
+    const interpretation = interpretFlow(
+      input({ geometryType: 'square', convergence: 'converging' }),
+    );
+
+    expect(interpretation.confidence).toBe('supported');
+    expect(interpretation.title).toBe('Dominant periodic lift signal');
+    expect(JSON.stringify(interpretation)).not.toContain('von Kármán');
   });
 });
 
