@@ -5,7 +5,7 @@
 > without depending on any particular AI assistant, chat history, or session
 > memory. Everything referenced here lives in this repository.
 >
-> Last updated: 2026-09-22 (after Phase 2.1 public preview closure).
+> Last updated: 2026-09-26 (after Phase 2.2 public release closure).
 
 ---
 
@@ -24,14 +24,17 @@ first thing to fix — nothing else proceeds on a red suite.
 
 **State in one paragraph:** 2D LBM (D2Q9, MRT) fluid simulator in the browser,
 React 19 + TypeScript + Vite, with the Float64 solver running in a dedicated Web
-Worker. Phase 0, Phase 1 and the Phase 2.0 Worker foundation are complete: 38
-fast invariant/boundary/spectral/Worker tests across 21 files, production build
-CI on Node 20/24, canonical benchmark records, and in-app Strouhal.
+Worker. Phase 0, Phase 1 and the Phase 2.0 Worker foundation are complete: 62
+fast invariant/boundary/spectral/Worker/interpretation tests across 22 files,
+production build CI on Node 20/24, canonical benchmark records, and in-app
+Strouhal.
 Poiseuille validates to 0.159% against the analytic solution; cylinder at
 Re = 100 gives Cd = 1.428 and St = 0.1691, both inside literature windows;
 cylinder at Re = 20 is a documented reporting benchmark (+6.8%, low-Re
-confinement). The differentiator — the interpretation layer that explains the
-physics to non-experts — is **not built yet** and is the next step.
+confinement). Phase 2.2 now explains what the current safety, drag and lift
+evidence supports. The next step is to audit geometry fidelity and reorganize
+the UX around numerical safety, evidence sufficiency and physical support
+before adding richer field annotations.
 
 ---
 
@@ -163,26 +166,38 @@ Deployment spec: [`docs/specs/phase-2-1-public-preview.md`](docs/specs/phase-2-1
 
 ### Step 3 — The interpretation layer *(the actual differentiator)* — IN PROGRESS
 
-- **Contextual explanations — IMPLEMENTATION COMPLETE, RELEASE PENDING.** A
+- **Contextual explanations — COMPLETE.** A
   pure decision model combines built-run numerical safety, Cd convergence, Cl
   Strouhal evidence, geometry, Re and blockage. The Results panel now separates
   observation from interpretation and caveat; unsupported geometry claims are
-  suppressed. Production-preview smoke reached the expected confined-cylinder
-  St = 0.1806 at Re = 100 and correctly described settled drag alongside a
-  laminar von Kármán street. Spec and measured evidence:
+  suppressed. Public smoke at `soplo.alx.engineering` reached the expected
+  confined-cylinder St = 0.1806 at Re = 100 and correctly described settled
+  drag alongside a laminar von Kármán street. Spec and measured evidence:
   [`docs/specs/phase-2-2-contextual-explanations.md`](docs/specs/phase-2-2-contextual-explanations.md).
-- **Phase 2.2 release closure — NEXT:** review, merge, let CI/Pages deploy, then
-  repeat the short smoke at `soplo.alx.engineering`.
-- **Canvas annotations — NEXT AFTER RELEASE:** stagnation point, wake region and
-  separation zone. These need field-derived detectors; force history alone
-  cannot support them.
+- **Phase 2.2 release closure — COMPLETE.** Merge `b820803`; CI and Pages runs
+  `36252026834` / `36252026845` passed. The public Re = 100 smoke reached 15,520
+  steps, St = 0.1806 from 19.5 periods, and produced no browser warning/error.
+- **Geometry-fidelity and validation-UX audit — NEXT.** Reproduce the apparent
+  detached NACA cell reported during QA and identify whether it belongs to the
+  source contour, rasterized solver mask or Canvas presentation. Do not hide or
+  repair it until that distinction is proven and covered by a written spec.
+- **Visual truth and trust-centred UX — AFTER THE AUDIT.** Keep the discrete LBM
+  mask available as numerical ground truth while presenting a smooth source
+  contour where supported. Organize the interface around three separate
+  questions: numerical safety, evidence sufficiency and physical support.
+- **Canvas annotations — AFTER THE UX FOUNDATION:** stagnation point, wake
+  region and separation zone. These need field-derived detectors; force history
+  alone cannot support them.
 - **Plain-language glossary — PENDING:** expand and translate the existing
   InfoTips after the annotation vocabulary is fixed.
 
-The Spanish fundamentals PDF previously cited here is absent from `docs/`.
-Phase 2.2 therefore used only committed validation/spec sources and deliberately
-did not invent separation, stagnation or attached-boundary-layer claims. Restore
-or replace that reviewed source before writing the richer annotation copy.
+The source pack for the next specs is identified: Krüger et al. (2017) for LBM
+method and geometry treatment; Tritton, *Physical Fluid Dynamics*, for physical
+interpretation; and Oberkampf & Roy (2010) for verification/validation language.
+Exact editions, pages and claim mappings must be recorded before externally
+cited UI copy is written. Kutta remains a conceptual UX reference only, with
+zero code translation. Until that source review exists, do not invent
+separation, stagnation or attached-boundary-layer claims.
 
 ### Step 4 — Guided experiments *(Phase 3, the teacher mode)*
 

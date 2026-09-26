@@ -1,8 +1,9 @@
 # Phase 2.2 Spec — Contextual flow explanations
 
-> Status: **implementation complete (2026-09-26); merge/release pending** ·
-> Owner: Alex · Execution: coding agent, implemented in reviewable slices on
-> `phase-2-2-contextual-explanations-spec` through `741e696`.
+> Status: **complete and publicly released (2026-09-26)** · Owner: Alex ·
+> Execution: coding agent, implemented in reviewable slices on
+> `phase-2-2-contextual-explanations-spec` through `6a0e672`, merged as
+> `b820803`, and closed on `phase-2-2-contextual-explanations-finalize`.
 > Prereq: Phase 2.0 Web Worker and Phase 2.1 public preview complete on `main`.
 > Rules: `AGENTS.md` applies. This spec authorizes only the deterministic
 > interpretation layer and its Results-panel integration. It does not authorize
@@ -425,8 +426,8 @@ that evidence is recorded.
 ## 12. Implementation evidence
 
 Phase 2.2 implementation completed on 2026-09-26 on
-`phase-2-2-contextual-explanations-spec` through `741e696`. The branch remains
-unmerged, so the custom-domain release check is intentionally not claimed yet.
+`phase-2-2-contextual-explanations-spec` through `6a0e672` and merged to `main`
+as `b820803`.
 
 - `interpretFlow()` is a pure, serializable model with explicit safety,
   sufficiency, geometry, Reynolds, Strouhal and confinement precedence. The
@@ -456,6 +457,23 @@ unmerged, so the custom-domain release check is intentionally not claimed yet.
 - No file under `src/lbm/`, `src/physics/`, `tests/benchmarks/` or benchmark
   fixtures changed. The benchmark exemption in IX-8 applies.
 
-The remaining IX-9 release action is to merge, let CI/Pages deploy, and repeat
-the short custom-domain smoke. Until then, this spec records implementation
-completion rather than claiming public release completion.
+## 13. Public release evidence
+
+Release closure completed on 2026-09-26:
+
+- the pre-merge gate passed 22/22 files and 62/62 tests in 24.32 seconds;
+- the production build passed with the unchanged 17.20 kB Worker and a
+  607.63 kB main chunk; the already deferred >500 kB warning remains visible;
+- merge commit `b820803` was pushed to `main`;
+- GitHub Actions CI run `36252026834` and Deploy Pages run `36252026845`
+  completed successfully for that exact commit;
+- the custom-domain Re = 100, D = 10, β = 10%, no-slip cylinder smoke reached
+  15,520 steps and reported St = 0.1806 from 19.5 periods with 191x peak
+  prominence;
+- the public Results panel displayed settled drag separately from a laminar von
+  Kármán vortex street, retained the borderline-safety and confinement caveats,
+  and the browser produced no warning/error log.
+
+IX-9 and the release Definition of Done are satisfied. No solver, physics,
+benchmark setup, spectral threshold or acceptance window changed during release
+closure.

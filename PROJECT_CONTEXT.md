@@ -85,8 +85,8 @@ Custom D2Q9 **MRT** LBM solver in plain TypeScript, Canvas2D rendering.
 - Smoke-line streamline renderer; viridis-style field rendering (|u|, ux, uy, vorticity).
 - Safety indicator (Re/τ/Ma), InfoTip educational popovers, perturbation injection to seed vortex streets.
 - Headless Vitest coverage for solver invariants, boundary contracts, the
-  spectral estimator and Worker runtime; `test:fast` currently runs 38 tests
-  across 21 files.
+  spectral estimator, Worker runtime and contextual interpretation;
+  `test:fast` currently runs 62 tests across 22 files.
 - Canonical validation recorded in `VALIDATION.md`: BM-1 and BM-3 pass their
   literature gates; BM-2 is a converged reporting benchmark with a documented
   low-Re confinement limitation.
@@ -97,13 +97,20 @@ Custom D2Q9 **MRT** LBM solver in plain TypeScript, Canvas2D rendering.
   transferred snapshots feed Canvas2D with bounded backpressure.
 - Public HTTPS preview deployed reproducibly from `main` at
   [`soplo.alx.engineering`](https://soplo.alx.engineering/).
+- Contextual Results explanations that separate drag settling, lift periodicity,
+  evidence sufficiency, numerical safety and known model limitations.
 - Fast GitHub Actions CI on Node 20 and 24 (`test:fast` + production build).
 - Repository identity and hygiene: README, MIT license, agent rules, clean
   tracked tree and simulation loop extracted to `useSimulation`.
 
 **Missing (the reason for the roadmap):**
-- Interpretation layer is embryonic (regime detection exists; explanation does not).
-- Guided experiments and teacher-mode lesson flows do not exist yet.
+- Geometry presentation still exposes the raw staircase mask without a reviewed
+  visual-truth model, and QA found an apparent detached NACA cell that must be
+  classified before it is treated as either rendering debt or geometry debt.
+- The broader UI does not yet organize setup, evidence and conclusions around
+  the user's central question: how much can I trust this result?
+- Field-backed annotations, a reviewed glossary, guided experiments and
+  teacher-mode lesson flows do not exist yet.
 
 ## 5. Roadmap
 
@@ -132,16 +139,19 @@ Headless test harness (Vitest) exercising the solver without the UI:
 Build on the existing regime detection:
 - **Web Worker foundation — COMPLETE.** The validated solver now runs off the
   main thread with deterministic lifecycle and pacing coverage.
-- **Contextual "what am I seeing?" explanations — IMPLEMENTATION COMPLETE,
-  RELEASE PENDING.** A pure, tested model combines built-run safety, Cd
+- **Contextual "what am I seeing?" explanations — COMPLETE.** A pure, tested
+  model combines built-run safety, Cd
   convergence, Cl periodicity, geometry, Re and blockage without inventing
   unsupported field phenomena. The Results panel separates observation,
-  interpretation and caveat. Merge and custom-domain smoke remain.
-- **Phase 2.2 release closure — NEXT:** review, merge, remote CI/Pages and the
-  custom-domain smoke.
-- **Canvas annotations — NEXT AFTER RELEASE:** stagnation point, wake region and
-  separation zone, backed by field-derived evidence rather than force-history
-  inference.
+  interpretation and caveat. CI, Pages and the custom-domain smoke passed on
+  2026-09-26.
+- **Geometry-fidelity and validation-UX audit — NEXT.** Diagnose the apparent
+  detached NACA cell across source contour, solver mask and Canvas rendering;
+  then specify a truthful smooth-contour presentation and a UI that separates
+  numerical safety, evidence sufficiency and physical support.
+- **Canvas annotations — AFTER THE UX FOUNDATION:** stagnation point, wake
+  region and separation zone, backed by field-derived evidence rather than
+  force-history inference.
 - **Plain-language glossary — PENDING:** expand and translate InfoTips after the
   annotation vocabulary is reviewed.
 
@@ -224,6 +234,7 @@ Shareable experiment/config URLs if cheap.
 | 2026-09-22 | **Web Worker foundation closed; Node 20 fast budget derived at <32 s** | Solver/physics stayed unchanged; WK-1…WK-9 cover ownership, transfer isolation, lifecycle, stale events and pacing. Four workers measured best; five comparable Node 20 runs ranged 29.80–30.89 s, so the old 30 s bound sat inside normal variance. The 32 s test-orchestration budget adds 1.11 s above the observed maximum without changing coverage or physics gates. Build emits a 17.20 kB Worker and a 602.77 kB main chunk; code splitting remains separate work |
 | 2026-09-22 | **Public preview lives at `soplo.alx.engineering`** | GitHub Pages deploys a tested relative-base Vite artifact from `main`; Namecheap provides only the `soplo` CNAME and GitHub enforces HTTPS. The validated CPU Worker remains the production backend. WebGPU is documented as an optional, separately validated v2 backend rather than a prerequisite for web distribution |
 | 2026-09-26 | **Contextual interpretation uses signal-specific evidence precedence** | The Results panel now treats the Cd heuristic as drag settling/variation and the Cl spectrum as periodicity evidence. A production-preview Re = 100 cylinder measured settled Cd alongside St = 0.1806 from 19.7 periods, proving those signals are compatible rather than contradictory. Safety errors still suppress all regime claims; low-Re periodicity remains a conflict; non-cylinder geometries receive generic wording only. No solver, spectral threshold or physics gate changed |
+| 2026-09-26 | **Geometry truth and validation UX precede canvas annotations** | QA showed that a physically sound backend is not enough when the raw staircase mask looks defective and users still cannot judge whether a result is trustworthy. The next phase first classifies the apparent detached NACA cell, then keeps the discrete mask visible as numerical truth while designing separate numerical-safety, evidence-sufficiency and physical-support states. Krüger et al., Tritton and Oberkampf & Roy provide the method, physics and V&V source hierarchy; Kutta remains UX inspiration only |
 
 ## 7. Reference projects
 
