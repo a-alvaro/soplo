@@ -79,7 +79,10 @@ Custom D2Q9 **MRT** LBM solver in plain TypeScript, Canvas2D rendering.
   benchmark-only free-slip mode.
 - Physical→lattice unit conversion layer with τ clamping and warning system.
 - Momentum-exchange (Ladd) force measurement, correctly timed post-collision/pre-stream; live Cd/Cl/L/D with convergence classification (converging / oscillating / unstable).
-- Geometries: cylinder, square, NACA 4-digit (parametric), SVG import, DXF import.
+- Geometries: cylinder, square, NACA 4-digit (parametric), SVG import, DXF
+  import. NACA is currently experimental: Phase 2.3 found a chord-reference
+  mismatch and invalid masks, so its quantitative outputs are not trusted until
+  the dedicated correction phase closes.
 - Auto-sized free-flow domain with blockage warnings. Manual/SVG wind-tunnel
   logic exists but its mode toggle is currently hidden.
 - Smoke-line streamline renderer; viridis-style field rendering (|u|, ux, uy, vorticity).
@@ -104,9 +107,13 @@ Custom D2Q9 **MRT** LBM solver in plain TypeScript, Canvas2D rendering.
   tracked tree and simulation loop extracted to `useSimulation`.
 
 **Missing (the reason for the roadmap):**
-- Geometry presentation still exposes the raw staircase mask without a reviewed
-  visual-truth model, and QA found an apparent detached NACA cell that must be
-  classified before it is treated as either rendering debt or geometry debt.
+- NACA placement uses 10/20/40 chord cells while its physical mapping, safety,
+  force normalization and spectral normalization use 20/40/80; 25/147 audited
+  masks are D2Q9-disconnected and two contain no body cells. This confirmed
+  physical/geometry debt must close before visual smoothing.
+- Geometry presentation still exposes the staircase field representation
+  without a reviewed visual-truth model; aerodynamic `solid=2` cells are not
+  rendered as an explicit body and are not rejected by the streamline mask.
 - The broader UI does not yet organize setup, evidence and conclusions around
   the user's central question: how much can I trust this result?
 - Field-backed annotations, a reviewed glossary, guided experiments and
@@ -145,10 +152,17 @@ Build on the existing regime detection:
   unsupported field phenomena. The Results panel separates observation,
   interpretation and caveat. CI, Pages and the custom-domain smoke passed on
   2026-09-26.
-- **Geometry-fidelity and validation-UX audit — NEXT.** Diagnose the apparent
-  detached NACA cell across source contour, solver mask and Canvas rendering;
-  then specify a truthful smooth-contour presentation and a UI that separates
-  numerical safety, evidence sufficiency and physical support.
+- **Geometry-fidelity and validation-UX audit — COMPLETE.** The exact trailing-
+  edge point is a separate D2Q9 component, 25/147 masks are 8-disconnected, two
+  are empty, and NACA placement disagrees by a factor of two with the physical
+  reference length used by τ, safety, forces and Strouhal.
+- **NACA geometry/physical-mapping correction — NEXT.** Decide and validate one
+  authoritative chord convention, reject invalid masks and reconcile every
+  derived quantity before presenting NACA outputs as quantitative.
+- **Visual truth and trust-centred UX — AFTER NACA CORRECTION.** Add a smooth
+  source contour without hiding the lattice mask, correct aerodynamic-solid
+  rendering/streamline semantics, and separate numerical safety, evidence
+  sufficiency and physical support.
 - **Canvas annotations — AFTER THE UX FOUNDATION:** stagnation point, wake
   region and separation zone, backed by field-derived evidence rather than
   force-history inference.
@@ -234,7 +248,8 @@ Shareable experiment/config URLs if cheap.
 | 2026-09-22 | **Web Worker foundation closed; Node 20 fast budget derived at <32 s** | Solver/physics stayed unchanged; WK-1…WK-9 cover ownership, transfer isolation, lifecycle, stale events and pacing. Four workers measured best; five comparable Node 20 runs ranged 29.80–30.89 s, so the old 30 s bound sat inside normal variance. The 32 s test-orchestration budget adds 1.11 s above the observed maximum without changing coverage or physics gates. Build emits a 17.20 kB Worker and a 602.77 kB main chunk; code splitting remains separate work |
 | 2026-09-22 | **Public preview lives at `soplo.alx.engineering`** | GitHub Pages deploys a tested relative-base Vite artifact from `main`; Namecheap provides only the `soplo` CNAME and GitHub enforces HTTPS. The validated CPU Worker remains the production backend. WebGPU is documented as an optional, separately validated v2 backend rather than a prerequisite for web distribution |
 | 2026-09-26 | **Contextual interpretation uses signal-specific evidence precedence** | The Results panel now treats the Cd heuristic as drag settling/variation and the Cl spectrum as periodicity evidence. A production-preview Re = 100 cylinder measured settled Cd alongside St = 0.1806 from 19.7 periods, proving those signals are compatible rather than contradictory. Safety errors still suppress all regime claims; low-Re periodicity remains a conflict; non-cylinder geometries receive generic wording only. No solver, spectral threshold or physics gate changed |
-| 2026-09-26 | **Geometry truth and validation UX precede canvas annotations** | QA showed that a physically sound backend is not enough when the raw staircase mask looks defective and users still cannot judge whether a result is trustworthy. The next phase first classifies the apparent detached NACA cell, then keeps the discrete mask visible as numerical truth while designing separate numerical-safety, evidence-sufficiency and physical-support states. Krüger et al., Tritton and Oberkampf & Roy provide the method, physics and V&V source hierarchy; Kutta remains UX inspiration only |
+| 2026-09-26 | **Geometry truth and validation UX precede canvas annotations** | QA showed that a validated solver core is not enough when the raw staircase mask looks defective and users still cannot judge whether a result is trustworthy. The next phase first classifies the apparent detached NACA cell, then keeps the discrete mask visible as numerical truth while designing separate numerical-safety, evidence-sufficiency and physical-support states. Krüger et al., Tritton and Oberkampf & Roy provide the method, physics and V&V source hierarchy; Kutta remains UX inspiration only |
+| 2026-09-26 | **NACA physical coherence precedes its visual polish** | The 147-case Phase 2.3 audit found a factor-two disagreement between placed chord (10/20/40) and physical/reference metadata (20/40/80), 25 D2Q9-disconnected masks and two empty masks. The reported point is the trailing-edge cell but is physically separate in the solver mask. Current NACA Cd/Cl/St are therefore non-quantitative; choose and revalidate one chord convention before adding a smooth overlay or broader UX work |
 
 ## 7. Reference projects
 

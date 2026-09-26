@@ -96,3 +96,10 @@ a physics/spec change, rule 1); a tight confined gate needs a parabolic inlet (v
   work (Phase 1) must account for the effective sampling rate `20 · dt`.
 - React 19 StrictMode double-invokes effects in dev; the animation loop and any future
   Worker lifecycle must stay idempotent.
+- **Open NACA correctness finding (Phase 2.3):** `buildSimulation()` places NACA
+  polygons with `RESOLUTION_CELLS` (10/20/40), while `geometryCharCells()` uses
+  `NACA_CHORD_CELLS` (20/40/80) for τ, safety, force normalization and Strouhal.
+  The 147-case audit also found 25 D2Q9-disconnected masks and two empty masks.
+  Current NACA Cd/Cl/St are non-quantitative. Do not patch either constant,
+  rasterization or normalization in isolation; follow the dedicated correction
+  spec and revalidate the coupled result.
