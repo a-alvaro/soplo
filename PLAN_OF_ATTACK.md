@@ -177,14 +177,22 @@ Deployment spec: [`docs/specs/phase-2-1-public-preview.md`](docs/specs/phase-2-1
 - **Phase 2.2 release closure — COMPLETE.** Merge `b820803`; CI and Pages runs
   `36252026834` / `36252026845` passed. The public Re = 100 smoke reached 15,520
   steps, St = 0.1806 from 19.5 periods, and produced no browser warning/error.
-- **Geometry-fidelity and validation-UX audit — NEXT.** Reproduce the apparent
-  detached NACA cell reported during QA and identify whether it belongs to the
-  source contour, rasterized solver mask or Canvas presentation. Do not hide or
-  repair it until that distinction is proven and covered by a written spec.
-- **Visual truth and trust-centred UX — AFTER THE AUDIT.** Keep the discrete LBM
-  mask available as numerical ground truth while presenting a smooth source
-  contour where supported. Organize the interface around three separate
-  questions: numerical safety, evidence sufficiency and physical support.
+- **Geometry-fidelity and validation-UX audit — COMPLETE.** The apparent point
+  is the trailing-edge cell, but it is a separate 8-neighbour component in the
+  exact NACA 2412/HIGH/+10-degree case. Across 147 cases, 25 masks are
+  8-disconnected and two LOW thin-airfoil cases contain zero body cells. The
+  audit also found that NACA polygons are placed at 10/20/40 cells while τ,
+  safety, forces and Strouhal use 20/40/80. Results and the reproducible matrix:
+  [`docs/specs/phase-2-3-geometry-fidelity-audit.md`](docs/specs/phase-2-3-geometry-fidelity-audit.md).
+- **NACA geometry/physical-mapping correction — NEXT.** Write a dedicated spec
+  that chooses the authoritative chord convention, reconciles placement and
+  all derived quantities, gates invalid masks, and defines focused
+  revalidation. Current NACA Cd/Cl/St values are not quantitative.
+- **Visual truth and trust-centred UX — AFTER THE NACA CORRECTION.** Keep the
+  discrete LBM mask available as numerical ground truth while presenting a
+  smooth source contour where supported. Organize the interface around three
+  separate questions: numerical safety, evidence sufficiency and physical
+  support.
 - **Canvas annotations — AFTER THE UX FOUNDATION:** stagnation point, wake
   region and separation zone. These need field-derived detectors; force history
   alone cannot support them.

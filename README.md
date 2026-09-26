@@ -45,6 +45,11 @@ physical honesty, and interpretation.
   literature gates; the Re = 20 cylinder is reported as a converged known
   limitation with a loose regression bound. See [`VALIDATION.md`](./VALIDATION.md)
   for the setups, measurements and caveats.
+- **NACA results are currently experimental, not quantitative.** A geometry
+  audit found that the placed chord and the reference length used by physical
+  conversion/force normalization disagree, and some thin or rotated masks are
+  disconnected. Do not use current NACA Cd, Cl or St values for comparison
+  until the dedicated correction and revalidation phase closes.
 
 ## Running locally
 
@@ -81,7 +86,8 @@ npm run dev     # Vite dev server, prints a local URL
 - Momentum-exchange (Ladd) force measurement; live Cd/Cl/L/D with convergence
   classification.
 - Geometries: cylinder, square, parametric NACA 4-digit airfoils, SVG import,
-  DXF import.
+  DXF import. NACA remains available for qualitative inspection but carries the
+  quantitative limitation stated above.
 - Auto-sized free-flow domain with blockage warnings. Manual/SVG wind-tunnel
   logic exists in the codebase, but its mode toggle is currently hidden.
 - Smoke-line streamline renderer; field rendering (|u|, ux, uy, vorticity).
@@ -99,6 +105,8 @@ npm run dev     # Vite dev server, prints a local URL
 
 - **Interpretation layer** — contextual Results explanations are implemented;
   canvas annotations (stagnation point, wake, separation) and a glossary remain.
+- **NACA geometry correction** — reconcile chord resolution, physical mapping
+  and raster-mask connectivity before visual smoothing.
 - **Guided experiments** — JSON-preset lessons (vortex shedding vs. Re, angle
   of attack on an airfoil, blunt vs. streamlined bodies).
 

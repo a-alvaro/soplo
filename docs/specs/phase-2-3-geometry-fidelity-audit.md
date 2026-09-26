@@ -1,7 +1,8 @@
 # Phase 2.3 Spec — Geometry fidelity and visual-truth audit
 
-> Status: **audit in progress (2026-09-26)** · Owner: Alex · Execution:
-> coding agent on `phase-2-3-geometry-fidelity-audit`.
+> Status: **audit complete (2026-09-26)** · Owner: Alex · Execution: coding
+> agent on `phase-2-3-geometry-fidelity-audit`; pre-registered spec `14fe5c3`,
+> reproducible diagnostic `7dc9c8b`.
 > Prereq: Phase 2.2 publicly released and closed on `main`.
 > Rules: `AGENTS.md` applies. This phase authorizes inspection, reproducible
 > diagnostics and documentation only. It does not authorize a solver, physical-
@@ -155,3 +156,85 @@ the validation required before any code change.
   validation and uncertainty communication.
 - Kutta (`github.com/crgimenes/kutta`): interaction and presentation reference
   only; zero code translation and no validation authority.
+
+## 9. Measured evidence
+
+The committed diagnostic evaluates all seven `NACA_OPTIONS`, all three
+resolution presets and seven angles from -15 to +15 degrees: 147 cases. Run it
+with:
+
+```bash
+node --import tsx scripts/audit-naca-geometry.ts
+node --import tsx scripts/audit-naca-geometry.ts --csv
+```
+
+The complete CSV produced the identical SHA-256
+`5a4f0098ab21b1de0fe328bd10263e0cda55be5673e0a1615c3fb60dff6fd47e`
+under Node 20.20.2 and Node 24.15.0.
+
+### F1 — CONFIRMED: physical-mapping defect
+
+All 147 cases place the polygon with 10/20/40 cells while metadata reports
+20/40/80. The exact QA case (NACA 2412, HIGH, +10 degrees) records:
+
+| Quantity | Metadata / displayed model | Placed polygon |
+|---|---:|---:|
+| Chord resolution | 80 cells | 40 cells |
+| Re for the diagnostic setup | 666.67 | 333.33 |
+| Physical cell size | 0.0025 m | 0.0050 m |
+| Occupied mask x-span | — | 39 cells |
+
+The factor-two mismatch propagates into τ, the safety ceiling, Cd/Cl reference
+length and Strouhal normalization. With the current implementation, NACA force
+coefficients and frequency normalization must not be described as quantitative,
+and the displayed Reynolds number does not describe the chord represented by
+the lattice mask.
+
+### F2 — CONFIRMED: presentation defect
+
+The screenshot's purple body is not an explicit body layer. `Canvas2D` gives
+the solid colour only to `solid=1`; `solid=2` aerodynamic cells are passed
+through the active field colormap and then bilinearly enlarged. The visual
+cannot currently distinguish “solid body” from “lowest field value.”
+
+### F3 — CONFIRMED: presentation-contract defect
+
+`StreamlineRenderer.step()` rejects only `solid=1`. It does not enforce a
+collision with `solid=2` aerodynamic bodies. Interpolated zero velocity may
+slow or stall some particles, but the renderer has no body-mask guarantee and
+can retain trails through cells that the solver treats as solid.
+
+### F4 — CONFIRMED: geometry defect
+
+The maintainer's provenance hypothesis was correct: the reported point is the
+maximum-x trailing-edge cell. It is not merely a display artefact, however. In
+the exact QA case it is a one-cell component disconnected under both 4- and
+8-neighbour connectivity, so the LBM solver sees it as a separate obstacle.
+
+Across the matrix:
+
+- 43/147 masks have multiple 4-neighbour components;
+- 25/147 masks have multiple D2Q9-relevant 8-neighbour components;
+- NACA 0006/LOW/0 degrees and 0009/LOW/0 degrees contain zero body cells;
+- 0006 accounts for 14 of the 25 disconnected 8-neighbour cases;
+- 0012 and 0015 remain 8-connected across the tested matrix.
+
+The pre-registered trailing-edge prediction is therefore only partly accepted:
+the point belongs to the trailing edge, but it is not connected under the D2Q9
+stencil. The resolution, angle, thickness and colormap predictions are
+confirmed.
+
+## 10. Decision and stop
+
+This is not primarily a cosmetic issue. The audit stops without changing the
+builder, rasterizer, physical conversion, renderer, solver, tests or acceptance
+windows.
+
+The next phase is a dedicated NACA geometry/physical-mapping correction spec.
+It must decide whether the authoritative chord presets are 10/20/40 or
+20/40/80, reconcile placement, UI labels, τ/safety, force and frequency
+normalization, define valid-mask gates for every offered profile/angle, and
+state the focused revalidation required by the changed physical mapping.
+
+Only after that correction is closed should SOPLO add the smooth visual contour,
+the numerical-mask view and the broader trust-centred UI redesign.
