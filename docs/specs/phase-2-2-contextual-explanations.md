@@ -1,7 +1,8 @@
 # Phase 2.2 Spec — Contextual flow explanations
 
-> Status: **draft for maintainer review** · Owner: Alex · Execution: coding
-> agent, one implementation session after approval.
+> Status: **implementation complete (2026-09-26); merge/release pending** ·
+> Owner: Alex · Execution: coding agent, implemented in reviewable slices on
+> `phase-2-2-contextual-explanations-spec` through `741e696`.
 > Prereq: Phase 2.0 Web Worker and Phase 2.1 public preview complete on `main`.
 > Rules: `AGENTS.md` applies. This spec authorizes only the deterministic
 > interpretation layer and its Results-panel integration. It does not authorize
@@ -410,8 +411,51 @@ After all gates pass:
 
 ## 11. Definition of done
 
-IX-1 through IX-9 pass · no solver/physics/benchmark values changed · the
-Results panel separates observation, interpretation and caveat · named physical
-regimes appear only under their specified evidence gates · unsupported geometry
-claims are absent · source discrepancy remains explicit · docs reflect measured
-implementation evidence · repository is clean and publishable.
+**Implementation:** IX-1 through IX-8 and the local production-preview parts of
+IX-9 pass · no solver/physics/benchmark values changed · the Results panel
+separates observation, interpretation and caveat · named physical regimes appear
+only under their specified evidence gates · unsupported geometry claims are
+absent · source discrepancy remains explicit · docs reflect measured evidence ·
+repository is clean and publishable.
+
+**Release:** merge the reviewed branch, pass remote CI/Pages and repeat IX-9's
+short smoke on `soplo.alx.engineering`. Public release is not complete until
+that evidence is recorded.
+
+## 12. Implementation evidence
+
+Phase 2.2 implementation completed on 2026-09-26 on
+`phase-2-2-contextual-explanations-spec` through `741e696`. The branch remains
+unmerged, so the custom-domain release check is intentionally not claimed yet.
+
+- `interpretFlow()` is a pure, serializable model with explicit safety,
+  sufficiency, geometry, Reynolds, Strouhal and confinement precedence. The
+  existing Cd classifier moved out of React without changing any threshold.
+- The Results panel now separates the Cd status from the physical explanation,
+  uses the built run's safety/metadata and exposes textual confidence in
+  addition to colour.
+- Interpretation coverage contains 24 focused cases. The 2026-09-26 closure
+  run passed 22/22 files and 62/62 tests in 23.93 seconds. The 2026-09-25
+  production build passed and emitted the unchanged 17.20 kB Worker plus a
+  607.63 kB main chunk; the already deferred >500 kB warning remains visible.
+- Production-preview smoke covered collecting evidence, an unreliable Re =
+  2,000 setup, reset isolation and the positive cylinder path. The Re = 100,
+  D = 10, β = 10%, no-slip app case reached 15,715 steps with St = 0.1806,
+  19.7 resolved periods and no production console warning/error. The panel
+  reported settled drag separately from a laminar von Kármán vortex street.
+- Low-Re smoke remained conservative: Re = 20 at 7,625 steps and Re = 5 at
+  4,595 steps still contained enough startup/acoustic Cd variation to retain
+  the oscillating/collecting wording. No threshold was relaxed to force a
+  steady label.
+- Square, NACA, SVG and DXF isolation, low-Re conflict handling, Reynolds
+  boundaries and confinement precedence are pinned by the pure decision-matrix
+  tests. No cylinder-specific wording leaks into non-cylinder results.
+- Development instrumentation reproduced the already documented React
+  `performance.measure` artefact during a long run. The production bundle did
+  not reproduce it; this is not a new application failure.
+- No file under `src/lbm/`, `src/physics/`, `tests/benchmarks/` or benchmark
+  fixtures changed. The benchmark exemption in IX-8 applies.
+
+The remaining IX-9 release action is to merge, let CI/Pages deploy, and repeat
+the short custom-domain smoke. Until then, this spec records implementation
+completion rather than claiming public release completion.

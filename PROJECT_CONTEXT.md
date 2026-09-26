@@ -132,9 +132,18 @@ Headless test harness (Vitest) exercising the solver without the UI:
 Build on the existing regime detection:
 - **Web Worker foundation — COMPLETE.** The validated solver now runs off the
   main thread with deterministic lifecycle and pacing coverage.
-- Contextual "what am I seeing?" explanations driven by Re + convergence state (attached laminar flow → separation → von Kármán street → beyond-validity).
-- Canvas annotations: stagnation point, wake region, separation zone.
-- Plain-language glossary; expand InfoTips.
+- **Contextual "what am I seeing?" explanations — IMPLEMENTATION COMPLETE,
+  RELEASE PENDING.** A pure, tested model combines built-run safety, Cd
+  convergence, Cl periodicity, geometry, Re and blockage without inventing
+  unsupported field phenomena. The Results panel separates observation,
+  interpretation and caveat. Merge and custom-domain smoke remain.
+- **Phase 2.2 release closure — NEXT:** review, merge, remote CI/Pages and the
+  custom-domain smoke.
+- **Canvas annotations — NEXT AFTER RELEASE:** stagnation point, wake region and
+  separation zone, backed by field-derived evidence rather than force-history
+  inference.
+- **Plain-language glossary — PENDING:** expand and translate InfoTips after the
+  annotation vocabulary is reviewed.
 
 ### Phase 3 — Guided experiments (the teacher mode)
 Experiments defined as JSON presets + guided steps + observation prompts. Launch set:
@@ -214,6 +223,7 @@ Shareable experiment/config URLs if cheap.
 | 2026-09-20 | **Web Worker is the next implementation phase; bundle size re-measured there** | The validated solver remains unchanged and moves off the main thread before interpretation UI expands. The current production build is valid but warns about a ~608 kB minified JS chunk; Worker extraction changes chunk topology, so size is measured again before separate code-splitting work is considered |
 | 2026-09-22 | **Web Worker foundation closed; Node 20 fast budget derived at <32 s** | Solver/physics stayed unchanged; WK-1…WK-9 cover ownership, transfer isolation, lifecycle, stale events and pacing. Four workers measured best; five comparable Node 20 runs ranged 29.80–30.89 s, so the old 30 s bound sat inside normal variance. The 32 s test-orchestration budget adds 1.11 s above the observed maximum without changing coverage or physics gates. Build emits a 17.20 kB Worker and a 602.77 kB main chunk; code splitting remains separate work |
 | 2026-09-22 | **Public preview lives at `soplo.alx.engineering`** | GitHub Pages deploys a tested relative-base Vite artifact from `main`; Namecheap provides only the `soplo` CNAME and GitHub enforces HTTPS. The validated CPU Worker remains the production backend. WebGPU is documented as an optional, separately validated v2 backend rather than a prerequisite for web distribution |
+| 2026-09-26 | **Contextual interpretation uses signal-specific evidence precedence** | The Results panel now treats the Cd heuristic as drag settling/variation and the Cl spectrum as periodicity evidence. A production-preview Re = 100 cylinder measured settled Cd alongside St = 0.1806 from 19.7 periods, proving those signals are compatible rather than contradictory. Safety errors still suppress all regime claims; low-Re periodicity remains a conflict; non-cylinder geometries receive generic wording only. No solver, spectral threshold or physics gate changed |
 
 ## 7. Reference projects
 
