@@ -26,8 +26,8 @@ flow, and SOPLO runs a Lattice-Boltzmann simulation live in your browser while i
   (converging / oscillating / unstable);
 - **tells you when to trust the numbers and when not to** — a Reynolds/τ/Mach
   safety indicator and blockage warnings, with the actual limits surfaced;
-- and (this is where it's headed) **explains what you are looking at** in plain
-  language.
+- and **explains what the current evidence supports** in plain language,
+  separating settled drag, periodic lift, uncertainty and model limitations.
 
 Most web LBM demos give you sliders in lattice units that mean nothing
 physically, let you simulate garbage without warning, and show colors without
@@ -97,8 +97,8 @@ npm run dev     # Vite dev server, prints a local URL
 
 **Not there yet (the roadmap):**
 
-- **Interpretation layer** — contextual "what am I seeing?" explanations,
-  canvas annotations (stagnation point, wake, separation), and a glossary.
+- **Interpretation layer** — contextual Results explanations are implemented;
+  canvas annotations (stagnation point, wake, separation) and a glossary remain.
 - **Guided experiments** — JSON-preset lessons (vortex shedding vs. Re, angle
   of attack on an airfoil, blunt vs. streamlined bodies).
 

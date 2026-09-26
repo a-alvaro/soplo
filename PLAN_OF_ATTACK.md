@@ -161,20 +161,28 @@ Worker loads from both the temporary project URL and the custom-domain root.
 
 Deployment spec: [`docs/specs/phase-2-1-public-preview.md`](docs/specs/phase-2-1-public-preview.md).
 
-### Step 3 — The interpretation layer *(the actual differentiator)* — NEXT
+### Step 3 — The interpretation layer *(the actual differentiator)* — IN PROGRESS
 
-This is why SOPLO exists and it is still unbuilt. On top of the existing regime
-detection (steady / oscillating / unstable) and the new Strouhal:
+- **Contextual explanations — IMPLEMENTATION COMPLETE, RELEASE PENDING.** A
+  pure decision model combines built-run numerical safety, Cd convergence, Cl
+  Strouhal evidence, geometry, Re and blockage. The Results panel now separates
+  observation from interpretation and caveat; unsupported geometry claims are
+  suppressed. Production-preview smoke reached the expected confined-cylinder
+  St = 0.1806 at Re = 100 and correctly described settled drag alongside a
+  laminar von Kármán street. Spec and measured evidence:
+  [`docs/specs/phase-2-2-contextual-explanations.md`](docs/specs/phase-2-2-contextual-explanations.md).
+- **Phase 2.2 release closure — NEXT:** review, merge, let CI/Pages deploy, then
+  repeat the short smoke at `soplo.alx.engineering`.
+- **Canvas annotations — NEXT AFTER RELEASE:** stagnation point, wake region and
+  separation zone. These need field-derived detectors; force history alone
+  cannot support them.
+- **Plain-language glossary — PENDING:** expand and translate the existing
+  InfoTips after the annotation vocabulary is fixed.
 
-- **Contextual explanations** driven by Re and flow state: attached laminar flow
-  → boundary-layer separation → von Kármán street → beyond-validity. Plain
-  language, no jargon without a definition.
-- **Canvas annotations**: stagnation point, wake region, separation zone.
-- **Plain-language glossary**; expand the existing InfoTips.
-
-The physics content for all of this is already written and referenced in the
-project's physics document (`docs/`, the Spanish fundamentals PDF) — §8 covers
-the observable phenomena and their literature values.
+The Spanish fundamentals PDF previously cited here is absent from `docs/`.
+Phase 2.2 therefore used only committed validation/spec sources and deliberately
+did not invent separation, stagnation or attached-boundary-layer claims. Restore
+or replace that reviewed source before writing the richer annotation copy.
 
 ### Step 4 — Guided experiments *(Phase 3, the teacher mode)*
 

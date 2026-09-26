@@ -96,6 +96,10 @@ export default function App() {
     () => safetyForLbm(liveLbm, liveCharCells),
     [liveLbm, liveCharCells],
   );
+  const builtSafety = useMemo(
+    () => (built ? safetyForLbm(built.lbm, built.charCells) : null),
+    [built],
+  );
 
   const headerStatus = running ? 'REC' : built ? 'PAUSED' : 'IDLE';
   const Nx = built?.Nx ?? previewNx;
@@ -199,6 +203,7 @@ export default function App() {
           // displayed St belongs to the run that produced it.
           geometryType={built?.config.geometry.type ?? null}
           Re={built?.lbm.Re ?? NaN}
+          numericalSafety={builtSafety?.overall ?? 'ok'}
           // Blockage ratio β = D/Ny for the confinement caption on the
           // literature reference — both taken from the built solver.
           charCells={built?.charCells ?? null}
